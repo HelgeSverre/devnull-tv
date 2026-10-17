@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>splash</title>
+<style>
+  /* Source for app/splash/splash.png (the TV's launch screen). Render at 1920×1080 and save as PNG. */
+  @font-face { font-family: "Geist"; src: url("../app/fonts/Geist-Bold.woff2") format("woff2"); font-weight: 700; }
+  @font-face { font-family: "Geist Mono"; src: url("../app/fonts/GeistMono-Regular.woff2") format("woff2"); font-weight: 400; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #111112; position: relative; }
+  .rail { position: absolute; left: 640px; top: 0; bottom: 0; width: 6px;
+          background: linear-gradient(#36363a 0, #36363a 50%, #ff8a4c 50%, #ff8a4c 100%); }
+  .node { position: absolute; left: 627px; top: 521px; width: 32px; height: 32px; border-radius: 50%;
+          background: #111112; box-shadow: 0 0 0 6px #ff8a4c; }
+  .lockup { position: absolute; left: 720px; top: 440px; display: flex; align-items: center; }
+  .lockup svg { width: 150px; height: 150px; margin-right: 44px; }
+  .word { font: 700 132px/1 "Geist", sans-serif; letter-spacing: -0.04em; color: #ececec; }
+  .word .slash { color: transparent; -webkit-text-stroke: 5px #ff8a4c; }
+  .cmd { position: absolute; left: 726px; top: 628px; font: 400 34px "Geist Mono", monospace; color: #a1a1a6; }
+</style>
+</head>
+<body>
+  <div class="rail"></div>
+  <div class="node"></div>
+  <div class="lockup">
+    <svg viewBox="1.6 1.5 45 45"><path fill="#ececec" d="M2 42h10L26 6H16Z"/><path fill="#ff8a4c" fill-rule="evenodd" d="M17.81 43.5h13.22L46.19 4.5H32.97ZM22.19 40.5l12.84-33h6.78l-12.84 33Z"/></svg>
+    <div class="word">/dev<span class="slash">/</span>null</div>
+  </div>
+  <div class="cmd">$ git fetch dev-null.sh</div>
+</body>
+</html>

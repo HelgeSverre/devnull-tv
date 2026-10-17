@@ -28,7 +28,7 @@ public API.
 | **Profile** | Avatar with lane ring, mirrored GitHub details, counts, the public activity graph, and Commits / Replies tabs. |
 | **Image viewer** | Full-screen images, stepping through a commit's images. |
 | **People** | The TV's own follow list: add a GitHub username (checked against the API first) or remove one. Stored on the TV. |
-| **Ambient** | After two idle minutes, or on PLAY, the latest commits one at a time, large enough to read from the sofa. CH ▲▼ browses them; any other key returns. |
+| **Ambient** | After two idle minutes, or on PLAY, the latest commits one at a time with their first image, large enough to read from the sofa. The key hint fades after 5 seconds (`AMBIENT_HINT_MS`); CH ▲▼ browses; any other key returns. |
 | **About** | Data source, refresh rate and the TV's web engine version. |
 
 ### Remote keys
@@ -132,6 +132,18 @@ TV supports:
 - **CSS:** no `gap` on flex containers (grid `gap` is fine), `inset`, `aspect-ratio`, `:has()`,
   `oklch()` or cascade layers.
 - **Text:** every commit body, name and bio goes through `textContent`, never `innerHTML`.
+
+**Launch screen.** `app/config.xml` declares a Samsung splash screen (`tizen:video_splash_screen`):
+a two-second fade-in video, then the static `app/splash/splash.png` until the app calls
+`window.screen.show()` once the log has loaded (`ready_when="custom"`, with an 8 s fallback). The
+`video` attribute is required: without it the TV rejects the package with a parsing error. To
+change the artwork, edit `design/splash.html`, render it at 1920×1080 to `app/splash/splash.png`
+(under 200 kB), and rebuild the video:
+
+```sh
+ffmpeg -loop 1 -i app/splash/splash.png -t 2 -r 30 -vf "fade=t=in:st=0:d=1.2,format=yuv420p" \
+  -c:v libx264 -crf 26 -movflags +faststart -an app/splash/intro.mp4
+```
 
 `design/screens.html` is the design document the app was built from: every screen at 1920×1080
 with real commits, following dev-null.sh's [design system](https://github.com/nunomaduro/dev-null.sh/blob/main/DESIGN.md).

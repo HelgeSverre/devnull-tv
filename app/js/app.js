@@ -9,7 +9,8 @@
   var DEFAULT_PEOPLE = ["HelgeSverre", "nunomaduro", "xHeaven", "kasperhartwich"];
   var POLL_MS = 60 * 1000;
   var IDLE_MS = 2 * 60 * 1000;
-  var AMBIENT_MS = 12 * 1000;
+  var AMBIENT_MS = 12 * 1000;      // time per commit in ambient mode
+  var AMBIENT_HINT_MS = 5 * 1000;  // the counter and key hint fade out after this long
   var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 10009, ESC: 27, BACKSPACE: 8,
               CH_UP: 427, CH_DOWN: 428, PAGE_UP: 33, PAGE_DOWN: 34, PLAY: 415, PAUSE: 19, PLAY_PAUSE: 10252,
               IME_DONE: 65376, IME_CANCEL: 65385 };
@@ -862,6 +863,7 @@
     ambient = { commits: commits, index: 0 };
     ambientEl.className = "";
     paintAmbient();
+    showAmbientHint();
     startAmbientTimer();
   }
 
@@ -878,30 +880,47 @@
       ambient.index = (ambient.index + delta + count) % count;
       paintAmbient();
     };
-    if (!fade) { go(); startAmbientTimer(); return; }
-    var block = ambientEl.querySelector(".block");
-    if (block) block.className = "block fade";
+    if (!fade) { go(); showAmbientHint(); startAmbientTimer(); return; }
+    Array.prototype.forEach.call(ambientEl.querySelectorAll(".block, .media"), function (el) { el.className += " fade"; });
     setTimeout(go, 650);
   }
 
   function paintAmbient() {
     var c = ambient.commits[ambient.index];
     var color = laneOf(c.author.id);
+    var image = c.images && c.images.length ? c.images[0] : null;
     ambientEl.textContent = "";
     ambientEl.appendChild(h("div", { class: "line", style: "background:linear-gradient(" + color + " 0, " + color + " 46%, var(--rail) 46%)" }));
     ambientEl.appendChild(h("div", { class: "knot", style: "color:" + color }));
-    ambientEl.appendChild(h("div", { class: "block" },
+    var block = h("div", { class: "block" + (image ? " with-image" : "") },
       h("div", { class: "who-row" }, avatar(c.author, 104),
         h("div", null, h("div", { style: "font-size:40px;font-weight:600", text: c.author.name || c.author.username }),
           h("div", { class: "m", style: "font-size:30px", text: "@" + c.author.username + " · " + ago(c.created_at) + " · " + c.short_hash }))),
       h("div", { class: "text", text: c.body }),
-      h("div", { class: "m", style: "margin-top:40px;font-size:30px", text: "★ " + c.stars_count + "   ↩ " + c.replies_count + (c.replies_count === 1 ? " reply" : " replies") })));
-    ambientEl.appendChild(h("div", { class: "m foot", text: (ambient.index + 1) + " / " + ambient.commits.length + " · CH ▲▼ browse · any other key returns to the log" }));
+      h("div", { class: "m", style: "margin-top:40px;font-size:30px", text: "★ " + c.stars_count + "   ↩ " + c.replies_count + (c.replies_count === 1 ? " reply" : " replies") }));
+    ambientEl.appendChild(block);
+    if (image) ambientEl.appendChild(h("div", { class: "media" }, h("img", { src: image.url, alt: image.description || "" })));
+    ambient.foot = h("div", { class: "m foot", text: (ambient.index + 1) + " / " + ambient.commits.length + " · CH ▲▼ browse · any other key returns to the log" });
+    ambientEl.appendChild(ambient.foot);
+    if (ambient.hintHidden) ambient.foot.className = "m foot faded";
+  }
+
+  // The hint shows when ambient starts and after each CH press, then fades so the screen stays calm.
+  function showAmbientHint() {
+    ambient.hintHidden = false;
+    if (ambient.foot) ambient.foot.className = "m foot";
+    clearTimeout(ambient.hintTimer);
+    ambient.hintTimer = setTimeout(function () {
+      if (!ambient) return;
+      ambient.hintHidden = true;
+      if (ambient.foot) ambient.foot.className = "m foot faded";
+    }, AMBIENT_HINT_MS);
   }
 
   function stopAmbient() {
     if (!ambient) return;
     clearInterval(ambient.timer);
+    clearTimeout(ambient.hintTimer);
     ambient = null;
     ambientEl.className = "hidden";
     ambientEl.textContent = "";
@@ -937,6 +956,19 @@
     tizen.tvinputdevice.registerKeyBatch(["MediaPlay", "MediaPause", "MediaPlayPause", "ChannelUp", "ChannelDown"]);
   } catch (e) { /* not on a TV, or keys unavailable */ }
 
+  // ── splash ─────────────────────────────────────────────────────────────────────────────────────
+
+  // config.xml shows the splash until the app says it's ready (ready_when="custom"), so the first
+  // thing on screen is a loaded log rather than an empty frame. The timeout keeps a slow or broken
+  // network from leaving the splash up forever.
+  var revealed = false;
+  function reveal() {
+    if (revealed) return;
+    revealed = true;
+    try { if (window.screen && typeof window.screen.show === "function") window.screen.show(); } catch (e) { /* not on a TV */ }
+  }
+  setTimeout(reveal, 8000);
+
   // ── start ──────────────────────────────────────────────────────────────────────────────────────
 
   function tick() { document.getElementById("clock").textContent = hhmm(new Date()); }
@@ -944,7 +976,7 @@
   setInterval(tick, 10000);
 
   show(logScreen);
-  logScreen.refresh();
+  logScreen.refresh().then(reveal);
   setInterval(function () { logScreen.refresh(); save("lastVisit", new Date().toISOString()); }, POLL_MS);
   resetIdle();
 })();

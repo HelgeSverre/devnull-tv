@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://dev-null.sh/tv" version="1.2.0" viewmodes="maximized">
+<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://dev-null.sh/tv" version="1.3.0" viewmodes="maximized">
     <tizen:application id="DvNullSh01.DevNull" package="DvNullSh01" required_version="2.3"/>
     <content src="index.html"/>
     <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
@@ -10,5 +10,8 @@
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
     <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:video_splash_screen ready_when="custom">
+        <tizen:vss_default video="splash/intro.mp4" background_image="splash/background.png" background_color="#111112" image="splash/splash.png" image_border="0px stretch"/>
+    </tizen:video_splash_screen>
     <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
 </widget>
