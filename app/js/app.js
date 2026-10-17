@@ -11,6 +11,8 @@
   var IDLE_MS = 2 * 60 * 1000;
   var AMBIENT_MS = 12 * 1000;      // time per commit in ambient mode
   var AMBIENT_HINT_MS = 5 * 1000;  // the counter and key hint fade out after this long
+  var AMBIENT_FADE_MS = 650;       // commit fade-out between screens
+  var AMBIENT_DRAIN_MS = 1200;     // the line above the node drains into it, then the line below fills
   var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 10009, ESC: 27, BACKSPACE: 8,
               CH_UP: 427, CH_DOWN: 428, PAGE_UP: 33, PAGE_DOWN: 34, PLAY: 415, PAUSE: 19, PLAY_PAUSE: 10252,
               IME_DONE: 65376, IME_CANCEL: 65385 };
@@ -860,30 +862,53 @@
   function startAmbient() {
     var commits = logScreen.commits.slice(0, 20);
     if (!commits.length) return;
-    ambient = { commits: commits, index: 0 };
+    ambient = { commits: commits, index: 0, queued: 0, lastColor: null };
     ambientEl.className = "";
+    ambientEl.textContent = "";
+    // The rail is built once and glides between commits; only the colored drain and fill restart.
+    var rail = {
+      upTrack: h("i", { class: "amb-track" }),
+      upSeg: h("i", { class: "amb-seg" }),
+      downTrack: h("i", { class: "amb-track" }),
+      downSeg: h("i", { class: "amb-seg" }),
+      knot: h("i", { class: "amb-knot" })
+    };
+    rail.el = h("div", { class: "amb-rail still" }, rail.upTrack, rail.upSeg, rail.downTrack, rail.downSeg, rail.knot);
+    ambientEl.appendChild(rail.el);
+    ambient.rail = rail;
     paintAmbient();
     showAmbientHint();
-    startAmbientTimer();
+    scheduleAmbient();
   }
 
-  function startAmbientTimer() {
-    clearInterval(ambient.timer);
-    ambient.timer = setInterval(function () { stepAmbient(1, true); }, AMBIENT_MS);
+  // Each commit is on screen for AMBIENT_MS: fade in, the line above the node drains into it, the line
+  // below fills, and the fade-out starts as the fill reaches the bottom.
+  function scheduleAmbient() {
+    clearTimeout(ambient.timer);
+    ambient.timer = setTimeout(function () { stepAmbient(1, false); }, AMBIENT_MS - AMBIENT_FADE_MS);
   }
 
-  // delta 1 = older, -1 = newer. Automatic steps fade; manual ones (CH ▲▼) switch at once and restart the timer.
-  function stepAmbient(delta, fade) {
-    var count = ambient.commits.length;
-    var go = function () {
-      if (!ambient) return;
-      ambient.index = (ambient.index + delta + count) % count;
-      paintAmbient();
-    };
-    if (!fade) { go(); showAmbientHint(); startAmbientTimer(); return; }
+  // delta 1 = older, -1 = newer. CH presses fade quickly and queue, so fast presses don't flicker.
+  function stepAmbient(delta, manual) {
+    ambient.queued += delta;
+    if (ambient.transition) return;
+    clearTimeout(ambient.timer);
+    var fade = manual ? 250 : AMBIENT_FADE_MS;
     var stage = ambientEl.querySelector(".amb-stage");
-    if (stage) stage.className = stage.className.replace(" in", "");
-    setTimeout(go, 650);
+    if (stage) {
+      stage.style.transitionDuration = fade + "ms";
+      stage.className = stage.className.replace(" in", "");
+    }
+    ambient.transition = setTimeout(function () {
+      if (!ambient) return;
+      var count = ambient.commits.length;
+      ambient.index = ((ambient.index + ambient.queued) % count + count) % count;
+      ambient.queued = 0;
+      ambient.transition = null;
+      paintAmbient();
+      if (manual) showAmbientHint();
+      scheduleAmbient();
+    }, fade);
   }
 
   // Ambient: one commit at a time, read from across the room. The commit text is the content, so it
@@ -901,10 +926,17 @@
       : (lp && lp.image_url && String(c.body || "").length <= AMBIENT_LINK_PICTURE_MAX
         ? { src: lp.image_url, alt: lp.title || "", caption: lp.title, host: lp.site_name || shortUrl(lp.url) } : null);
 
-    ambientEl.textContent = "";
-    var knot = h("i", { class: "amb-knot", style: "color:" + color });
-    var progress = h("i", { class: "amb-progress", style: "background:" + color + ";animation-duration:" + AMBIENT_MS + "ms" });
-    ambientEl.appendChild(h("div", { class: "amb-rail" }, h("i", { class: "amb-up" }), progress, knot));
+    Array.prototype.forEach.call(ambientEl.querySelectorAll(".amb-stage, .amb-clock, .foot"), function (el) { el.parentNode.removeChild(el); });
+    var rail = ambient.rail;
+    // Above the node: the previous commit's lane, which just filled the line below its node, drains down
+    // into this one. Below the node: this commit's lane fills for the rest of its time on screen.
+    rail.upSeg.textContent = "";
+    rail.downSeg.textContent = "";
+    rail.upSeg.appendChild(h("i", { class: "amb-drain", style: "background:" + (ambient.lastColor || color) + ";animation-duration:" + AMBIENT_DRAIN_MS + "ms" }));
+    rail.downSeg.appendChild(h("i", { class: "amb-fill", style: "background:" + color + ";animation-delay:" + AMBIENT_DRAIN_MS +
+      "ms;animation-duration:" + (AMBIENT_MS - AMBIENT_DRAIN_MS - AMBIENT_FADE_MS) + "ms" }));
+    rail.knot.style.color = color;
+    ambient.lastColor = color;
     ambientEl.appendChild(h("div", { class: "m amb-clock", text: hhmm(new Date()) }));
 
     var head = h("div", { class: "amb-head" }, avatar(c.author, 96),
@@ -936,11 +968,17 @@
       body.style.fontSize = AMBIENT_SIZES[i] + "px";
       if (body.scrollHeight <= room) break;
     }
-    // Hang the node beside the avatar.
-    var top = stage.offsetTop + text.offsetTop + head.offsetTop + head.offsetHeight / 2;
-    knot.style.top = (top - 18) + "px";
-    ambientEl.querySelector(".amb-up").style.height = (top - 18) + "px";
-    progress.style.top = (top + 18) + "px";
+    // Hang the node beside the avatar. The rail glides there (CSS transitions) while the commit fades in.
+    var top = Math.round(stage.offsetTop + text.offsetTop + head.offsetTop + head.offsetHeight / 2);
+    rail.knot.style.transform = "translateY(" + (top - 18) + "px)";
+    rail.upTrack.style.height = rail.upSeg.style.height = (top - 18) + "px";
+    rail.downTrack.style.transform = rail.downSeg.style.transform = "translateY(" + (top + 18) + "px)";
+    rail.downTrack.style.height = rail.downSeg.style.height = (1080 - top - 18) + "px";
+    if (rail.el.className.indexOf("still") >= 0) {
+      // First commit: place the rail without gliding from zero.
+      rail.el.offsetHeight; // apply positions before enabling transitions
+      setTimeout(function () { rail.el.className = "amb-rail"; }, 50);
+    }
     setTimeout(function () { stage.className += " in"; }, 30);
   }
 
@@ -958,7 +996,8 @@
 
   function stopAmbient() {
     if (!ambient) return;
-    clearInterval(ambient.timer);
+    clearTimeout(ambient.timer);
+    clearTimeout(ambient.transition);
     clearTimeout(ambient.hintTimer);
     ambient = null;
     ambientEl.className = "hidden";

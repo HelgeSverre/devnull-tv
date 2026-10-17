@@ -159,14 +159,20 @@ svg { display: block; }
 .notice { padding: 0 44px; font-size: 26px; }
 
 #ambient { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: var(--shell); z-index: 9; }
-#ambient .amb-rail i { position: absolute; display: block; }
-#ambient .amb-up { left: 197px; top: 0; width: 6px; background: var(--rail); }
-#ambient .amb-knot { left: 182px; width: 36px; height: 36px; border-radius: 50%; background: var(--shell);
-                     box-shadow: 0 0 0 6px currentColor; }
-/* The lane line below the node fills downward while a commit is on screen. */
-#ambient .amb-progress { left: 197px; width: 6px; height: 0; bottom: auto; animation-name: amb-fill;
-                         animation-timing-function: linear; animation-fill-mode: forwards; }
-@keyframes amb-fill { from { height: 0; } to { height: 1080px; } }
+#ambient .amb-rail > i { position: absolute; display: block; left: 197px; top: 0; width: 6px; overflow: hidden;
+                         transition: height 700ms ease-in-out, transform 700ms ease-in-out, color 700ms ease; }
+#ambient .amb-rail.still > i { transition: none; }
+#ambient .amb-track { background: var(--rail); }
+#ambient .amb-knot { left: 182px !important; width: 36px !important; height: 36px; border-radius: 50%; background: var(--shell);
+                     box-shadow: 0 0 0 6px currentColor; overflow: visible !important; z-index: 1; }
+/* The colored line restarts inside each segment; transforms keep it smooth on TV hardware. */
+#ambient .amb-seg i { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: block; }
+#ambient .amb-drain { transform-origin: bottom; animation-name: amb-drain; animation-timing-function: ease-in;
+                      animation-fill-mode: both; }
+#ambient .amb-fill { transform-origin: top; animation-name: amb-fill; animation-timing-function: linear;
+                     animation-fill-mode: both; }
+@keyframes amb-drain { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+@keyframes amb-fill { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 #ambient .amb-clock { position: absolute; right: 96px; top: 54px; font-size: 32px; }
 #ambient .amb-stage { position: absolute; left: 290px; right: 120px; top: 110px; bottom: 150px; display: flex;
                       align-items: center; opacity: 0; transition: opacity 600ms ease; }
