@@ -334,3 +334,13 @@ svg { display: block; }
 .about .kv { display: grid; grid-template-columns: 240px 1fr; grid-gap: 12px 24px; border: 2px solid var(--hairline);
              border-radius: 16px; padding: 24px 30px; margin-bottom: 30px; }
 .about .kv .m { font-size: 26px; }
+
+/* ── boot screen ───────────────────────────────────────────────────── */
+#boot { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 20; background: #111112;
+        transition: opacity 450ms ease; }
+#boot.gone { opacity: 0; }
+#boot img { display: block; width: 1920px; height: 1080px; }
+/* A ring leaves the splash's orange node while the log loads. */
+#boot .pulse { position: absolute; left: 627px; top: 521px; width: 32px; height: 32px; border-radius: 50%;
+               box-shadow: 0 0 0 6px #ff8a4c; animation: boot-pulse 1.4s ease-out infinite; }
+@keyframes boot-pulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(2.4); opacity: 0; } }

@@ -1396,14 +1396,17 @@
 
   // ── splash ─────────────────────────────────────────────────────────────────────────────────────
 
-  // config.xml shows the splash until the app says it's ready (ready_when="custom"), so the first
-  // thing on screen is a loaded log rather than an empty frame. The timeout keeps a slow or broken
-  // network from leaving the splash up forever.
+  // Samsung's own launch screen ("<name> Loading…") covers the start on TVs without the video splash
+  // in config.xml, and that splash hands over at first paint. Either way the first paint is #boot, the
+  // splash artwork, which stays until the log has loaded so the first real screen is a full log. The
+  // timeout keeps a slow or broken network from leaving it up forever.
   var revealed = false;
   function reveal() {
     if (revealed) return;
     revealed = true;
-    try { if (window.screen && typeof window.screen.show === "function") window.screen.show(); } catch (e) { /* not on a TV */ }
+    var boot = document.getElementById("boot");
+    boot.className = "gone";
+    setTimeout(function () { boot.parentNode.removeChild(boot); }, 500);
   }
   setTimeout(reveal, 8000);
 

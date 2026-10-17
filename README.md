@@ -134,12 +134,15 @@ TV supports:
   `oklch()` or cascade layers.
 - **Text:** every commit body, name and bio goes through `textContent`, never `innerHTML`.
 
-**Launch screen.** `app/config.xml` declares a Samsung splash screen (`tizen:video_splash_screen`):
-a two-second fade-in video, then the static `app/splash/splash.png` until the app calls
-`window.screen.show()` once the log has loaded (`ready_when="custom"`, with an 8 s fallback). The
-`video` attribute is required: without it the TV rejects the package with a parsing error. To
-change the artwork, edit `design/splash.html`, render it at 1920×1080 to `app/splash/splash.png`
-(under 200 kB), and rebuild the video:
+**Launch screen.** The page's first paint is its own boot screen (`#boot` in `app/index.html`): the
+artwork in `app/splash/splash.png` with a pulsing node, until the log has loaded (with an 8 s
+fallback). On this 2021 TV, Samsung's own "dev-null.sh Loading…" screen shows briefly before that
+and can't be replaced. `app/config.xml` also declares Samsung's video splash
+(`tizen:video_splash_screen`, `ready_when="first-paint"`) for TVs that support it: a two-second
+fade-in video, handing over to the identical boot screen. Its `video` attribute is required:
+without it the TV rejects the package with a parsing error. To change the artwork, edit
+`design/splash.html`, render it at 1920×1080 to `app/splash/splash.png` (under 200 kB), and rebuild
+the video:
 
 ```sh
 ffmpeg -loop 1 -i app/splash/splash.png -t 2 -r 30 -vf "fade=t=in:st=0:d=1.2,format=yuv420p" \
