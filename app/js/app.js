@@ -4,6 +4,7 @@
 (function () {
   "use strict";
 
+  var VERSION = "1.4.0";
   var SITE = "https://dev-null.sh";
   var API = SITE + "/api/v1";
   var DEFAULT_PEOPLE = ["HelgeSverre", "nunomaduro", "xHeaven", "kasperhartwich"];
@@ -11,8 +12,8 @@
   var IDLE_MS = 2 * 60 * 1000;
   var AMBIENT_MS = 12 * 1000;      // time per commit in ambient mode
   var AMBIENT_HINT_MS = 5 * 1000;  // the counter and key hint fade out after this long
-  var AMBIENT_FADE_MS = 650;       // commit fade-out between screens
-  var AMBIENT_DRAIN_MS = 1200;     // the line above the node drains into it, then the line below fills
+  var AMBIENT_SCROLL_MS = 1100;    // the log scrolling to the next commit
+  var AMBIENT_STEP_MS = 550;       // the same scroll after a CH press
   var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 10009, ESC: 27, BACKSPACE: 8,
               CH_UP: 427, CH_DOWN: 428, PAGE_UP: 33, PAGE_DOWN: 34, PLAY: 415, PAUSE: 19, PLAY_PAUSE: 10252,
               IME_DONE: 65376, IME_CANCEL: 65385 };
@@ -50,6 +51,7 @@
     log: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="6" r="2.5"/><circle cx="7" cy="18" r="2.5"/><path d="M7 8.5v7M12 6h8M12 18h8M12 12h6"/></svg>',
     people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg>',
     ambient: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M10 10.5l2 2 3-3.5"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M19 7h1M4 17h3M13 17h7"/><circle cx="16" cy="7" r="2.5"/><circle cx="10" cy="17" r="2.5"/></svg>',
     about: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
     star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>',
     reply: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 6 6"/></svg>',
@@ -178,7 +180,7 @@
 
   var stack = [];          // screens to return to with Back
   var screen = null;       // current screen object
-  var nav = { open: false, index: 0, items: [["log", "Log"], ["people", "People"], ["ambient", "Ambient"], ["about", "About"]] };
+  var nav = { open: false, index: 0, items: [["log", "Log"], ["people", "People"], ["ambient", "Ambient"], ["settings", "Settings"], ["about", "About"]] };
   var viewer = null;       // { images, index, commit }
   var ambient = null;      // { index, timer }
   var idleTimer = null;
@@ -249,6 +251,7 @@
       stack = [];
       if (target === "log") show(logScreen);
       else if (target === "people") show(peopleScreen);
+      else if (target === "settings") show(settingsScreen);
       else if (target === "about") show(aboutScreen);
       else if (target === "ambient") { renderNav(); startAmbient(); return; }
     }
@@ -809,17 +812,16 @@
   var aboutScreen = {
     name: "about", section: "about",
     render: function (root) {
-      var feed = h("main", { class: "feed" }, h("div", { class: "feed-head" }, h("h1", { text: "About" }), h("span", { class: "m", text: "v1.2.0" })));
+      var feed = h("main", { class: "feed" }, h("div", { class: "feed-head" }, h("h1", { text: "About" }), h("span", { class: "m", text: "v" + VERSION })));
       var kv = h("div", { class: "kv" });
-      [["source", "dev-null.sh public API, read-only"], ["people", people.length + " on this TV, stored on the TV"],
-       ["refresh", "every 60 seconds"], ["sign-in", "null"], ["engine", navigator.userAgent]].forEach(function (pair) {
+      [["site", "dev-null.sh"], ["people", people.length + " on this TV"], ["refresh", "every 60 seconds"],
+       ["engine", navigator.userAgent]].forEach(function (pair) {
         kv.appendChild(h("span", { class: "m", text: pair[0] }));
-        kv.appendChild(h("span", { class: pair[1] === "null" ? "m" : null, style: pair[0] === "engine" ? "font-size:22px;color:var(--muted)" : null, text: pair[1] }));
+        kv.appendChild(h("span", { style: pair[0] === "engine" ? "font-size:22px;color:var(--muted)" : null, text: pair[1] }));
       });
       feed.appendChild(h("div", { class: "about" },
-        h("p", { text: "/dev/null on TV reads public commits from dev-null.sh for the developers you add on this TV. Nothing is posted, starred or followed from here; replying and starring happen on your phone through the QR code on each commit." }),
-        kv,
-        h("p", { class: "m", style: "font-size:26px", text: "$ man devnull-tv → pairing this TV with your account is planned, not built." })));
+        h("p", { text: "dev-null.sh is the social network for developers. Posts are commits on one log, drawn like git log --graph, and every developer has their own lane color." }),
+        kv));
       root.appendChild(feed);
       root.appendChild(h("aside", { class: "aside" }, keysBlock([["◀", "menu"], ["BACK", "back"]])));
     },
@@ -827,6 +829,47 @@
       if (code === KEY.LEFT) { openNav(); return true; }
       return false;
     }
+  };
+
+  // ── Settings ───────────────────────────────────────────────────────────────────────────────────
+
+  var settingsScreen = {
+    name: "settings", section: "settings",
+    focus: 0,
+
+    render: function (root) {
+      var self = this;
+      var feed = h("main", { class: "feed" },
+        h("div", { class: "feed-head" }, h("h1", { text: "Settings" }), h("span", { class: "m", text: "stored on this TV" })),
+        h("div", { class: "m setting-label", text: "ambient style" }));
+      AMBIENT_STYLES.forEach(function (style, i) {
+        var on = ambientStyle === style[0];
+        var focused = self.focus === i;
+        feed.appendChild(h("div", { class: "option" + (focused ? " focus" : "") + (on ? " on" : "") },
+          h("i", { class: "radio" }),
+          h("div", { class: "who-line" }, h("div", { class: "name", text: style[1] }), h("div", { class: "m", text: style[2] })),
+          h("span", { class: "m act", text: on ? "in use" : (focused ? "OK use" : "") })));
+      });
+      root.appendChild(feed);
+      root.appendChild(h("aside", { class: "aside" }, keysBlock([["▲ ▼", "move"], ["OK", "use this style"], ["▶ PLAY", "preview"], ["◀", "menu"]])));
+    },
+
+    key: function (code) {
+      switch (code) {
+        case KEY.UP: this.focus = Math.max(0, this.focus - 1); this.rerender(); return true;
+        case KEY.DOWN: this.focus = Math.min(AMBIENT_STYLES.length - 1, this.focus + 1); this.rerender(); return true;
+        case KEY.LEFT: openNav(); return true;
+        case KEY.ENTER:
+          ambientStyle = AMBIENT_STYLES[this.focus][0];
+          save("ambientStyle", ambientStyle);
+          this.rerender();
+          return true;
+        case KEY.PLAY: case KEY.PLAY_PAUSE: startAmbient(); return true;
+      }
+      return false;
+    },
+
+    rerender: function () { main.textContent = ""; this.render(main); }
   };
 
   // ── Image viewer ───────────────────────────────────────────────────────────────────────────────
@@ -859,128 +902,326 @@
 
   // ── Ambient ────────────────────────────────────────────────────────────────────────────────────
 
+  // Ambient: one commit at a time, read from across the room. Each commit shows for AMBIENT_MS after
+  // its transition settles, with a progress cue that runs out as the next transition starts. How a
+  // commit moves to the next is the style, chosen in Settings.
+  var AMBIENT_STYLES = [
+    ["scroll", "Scroll", "The log scrolls up one commit at a time, each node on one continuous rail."],
+    ["still", "Still", "Nothing moves. Commits cross-fade in place beside a fixed node."],
+    ["timeline", "Timeline", "A row of nodes along the bottom shows where you are in the set."],
+    ["terminal", "Terminal", "Each commit types itself out after a git show."]
+  ];
+  var ambientStyle = load("ambientStyle", "scroll");
+
   function startAmbient() {
     var commits = logScreen.commits.slice(0, 20);
     if (!commits.length) return;
-    ambient = { commits: commits, index: 0, queued: 0, lastColor: null };
-    ambientEl.className = "";
+    var id = AMBIENT_STYLE_IMPL[ambientStyle] ? ambientStyle : "scroll";
+    ambient = { commits: commits, index: 0, queued: 0, style: AMBIENT_STYLE_IMPL[id], timers: [] };
+    ambientEl.className = "style-" + id;
     ambientEl.textContent = "";
-    // The rail is built once and glides between commits; only the colored drain and fill restart.
-    var rail = {
-      upTrack: h("i", { class: "amb-track" }),
-      upSeg: h("i", { class: "amb-seg" }),
-      downTrack: h("i", { class: "amb-track" }),
-      downSeg: h("i", { class: "amb-seg" }),
-      knot: h("i", { class: "amb-knot" })
-    };
-    rail.el = h("div", { class: "amb-rail still" }, rail.upTrack, rail.upSeg, rail.downTrack, rail.downSeg, rail.knot);
-    ambientEl.appendChild(rail.el);
-    ambient.rail = rail;
-    paintAmbient();
+    ambientEl.appendChild(ambient.clock = h("div", { class: "m amb-clock", text: hhmm(new Date()) }));
+    ambientEl.appendChild(ambient.foot = h("div", { class: "m foot" }));
+    ambient.style.start(ambient);
+    updateAmbientFoot();
     showAmbientHint();
     scheduleAmbient();
   }
 
-  // Each commit is on screen for AMBIENT_MS: fade in, the line above the node drains into it, the line
-  // below fills, and the fade-out starts as the fill reaches the bottom.
   function scheduleAmbient() {
     clearTimeout(ambient.timer);
-    ambient.timer = setTimeout(function () { stepAmbient(1, false); }, AMBIENT_MS - AMBIENT_FADE_MS);
+    ambient.timer = setTimeout(function () { stepAmbient(1, false); }, AMBIENT_MS);
   }
 
-  // delta 1 = older, -1 = newer. CH presses fade quickly and queue, so fast presses don't flicker.
+  // delta 1 = older, -1 = newer. CH presses move faster, and presses during a transition add up and
+  // land in one move.
   function stepAmbient(delta, manual) {
     ambient.queued += delta;
-    if (ambient.transition) return;
+    if (ambient.moving) return;
     clearTimeout(ambient.timer);
-    var fade = manual ? 250 : AMBIENT_FADE_MS;
-    var stage = ambientEl.querySelector(".amb-stage");
-    if (stage) {
-      stage.style.transitionDuration = fade + "ms";
-      stage.className = stage.className.replace(" in", "");
-    }
-    ambient.transition = setTimeout(function () {
+    var steps = ambient.queued;
+    ambient.queued = 0;
+    if (!steps) { scheduleAmbient(); return; }
+    var count = ambient.commits.length;
+    ambient.index = ((ambient.index + steps) % count + count) % count;
+    var ms = ambient.style.go(ambient, steps > 0 ? 1 : -1, manual);
+    ambient.moving = setTimeout(function () {
       if (!ambient) return;
-      var count = ambient.commits.length;
-      ambient.index = ((ambient.index + ambient.queued) % count + count) % count;
-      ambient.queued = 0;
-      ambient.transition = null;
-      paintAmbient();
-      if (manual) showAmbientHint();
+      ambient.moving = null;
+      ambient.clock.textContent = hhmm(new Date());
+      if (ambient.queued) { stepAmbient(0, true); return; }
       scheduleAmbient();
-    }, fade);
+    }, ms);
+    updateAmbientFoot();
+    if (manual) showAmbientHint();
   }
 
-  // Ambient: one commit at a time, read from across the room. The commit text is the content, so it
-  // gets the largest size at which all of it fits; an image or link picture sits beside it when present.
+  // Timers that belong to the current ambient session; stopAmbient clears them all.
+  function ambientLater(fn, ms) {
+    var a = ambient;
+    a.timers.push(setTimeout(function () { if (ambient === a) fn(); }, ms));
+  }
+
+  function updateAmbientFoot() {
+    ambient.foot.textContent = (ambient.index + 1) + " / " + ambient.commits.length + " · CH ▲▼ browse · any other key returns to the log";
+  }
+
+  // Restart a progress animation (a CSS keyframe on transform) so it runs for AMBIENT_MS after delay.
+  function runFill(el, cls, color, delay) {
+    el.className = "";
+    el.offsetHeight; // drop the old animation before starting the new one
+    el.style.background = color;
+    el.style.animationDelay = delay + "ms";
+    el.style.animationDuration = AMBIENT_MS + "ms";
+    el.className = cls;
+  }
+
   var AMBIENT_SIZES = [104, 92, 82, 74, 66, 58, 52, 46, 40];
   var AMBIENT_LINK_PICTURE_MAX = 160; // characters
 
-  function paintAmbient() {
-    var c = ambient.commits[ambient.index];
-    var color = laneOf(c.author.id);
+  // A commit's own image always shows. A link's picture only joins short commits: on a long one it
+  // would squeeze the text, and the link is already in the text.
+  function ambientPicture(c) {
     var lp = c.link_preview;
-    // A commit's own image always shows. A link's picture only joins short commits: on a long one it
-    // would squeeze the text, and the link is already in the text.
-    var picture = c.images && c.images.length ? { src: c.images[0].url, alt: c.images[0].description || "" }
-      : (lp && lp.image_url && String(c.body || "").length <= AMBIENT_LINK_PICTURE_MAX
-        ? { src: lp.image_url, alt: lp.title || "", caption: lp.title, host: lp.site_name || shortUrl(lp.url) } : null);
-
-    Array.prototype.forEach.call(ambientEl.querySelectorAll(".amb-stage, .amb-clock, .foot"), function (el) { el.parentNode.removeChild(el); });
-    var rail = ambient.rail;
-    // Above the node: the previous commit's lane, which just filled the line below its node, drains down
-    // into this one. Below the node: this commit's lane fills for the rest of its time on screen.
-    rail.upSeg.textContent = "";
-    rail.downSeg.textContent = "";
-    rail.upSeg.appendChild(h("i", { class: "amb-drain", style: "background:" + (ambient.lastColor || color) + ";animation-duration:" + AMBIENT_DRAIN_MS + "ms" }));
-    rail.downSeg.appendChild(h("i", { class: "amb-fill", style: "background:" + color + ";animation-delay:" + AMBIENT_DRAIN_MS +
-      "ms;animation-duration:" + (AMBIENT_MS - AMBIENT_DRAIN_MS - AMBIENT_FADE_MS) + "ms" }));
-    rail.knot.style.color = color;
-    ambient.lastColor = color;
-    ambientEl.appendChild(h("div", { class: "m amb-clock", text: hhmm(new Date()) }));
-
-    var head = h("div", { class: "amb-head" }, avatar(c.author, 96),
-      h("div", { class: "amb-who" },
-        h("div", { class: "amb-name", text: c.author.name || c.author.username }),
-        h("div", { class: "m amb-meta", text: "@" + c.author.username + " · " + ago(c.created_at) + " · " + c.short_hash })));
-    // When the link card is on screen, its URL in the text only repeats it.
-    var bodyText = String(c.body || "");
-    if (picture && picture.caption && lp && lp.url) bodyText = bodyText.split(lp.url).join("").replace(/\n{3,}/g, "\n\n").trim();
-    var body = bodyNode(bodyText, false);
-    body.className = "body amb-body";
-    var stats = h("div", { class: "m amb-stats" },
-      h("span", null, icon("star"), String(c.stars_count)),
-      h("span", null, icon("reply"), c.replies_count + (c.replies_count === 1 ? " reply" : " replies")));
-    var text = h("div", { class: "amb-text" }, head, body, stats);
-    var stage = h("div", { class: "amb-stage" + (picture ? " with-media" : "") }, text);
-    if (picture) {
-      stage.appendChild(h("figure", { class: "amb-media" }, h("img", { src: picture.src, alt: picture.alt }),
-        picture.caption ? h("figcaption", null, h("b", { text: picture.caption }), h("span", { class: "m", text: picture.host })) : null));
+    if (c.images && c.images.length) return { src: c.images[0].url, alt: c.images[0].description || "" };
+    if (lp && lp.image_url && String(c.body || "").length <= AMBIENT_LINK_PICTURE_MAX) {
+      return { src: lp.image_url, alt: lp.title || "", caption: lp.title, host: lp.site_name || shortUrl(lp.url), url: lp.url };
     }
-    ambientEl.appendChild(stage);
-    ambient.foot = h("div", { class: "m foot" + (ambient.hintHidden ? " faded" : ""),
-      text: (ambient.index + 1) + " / " + ambient.commits.length + " · CH ▲▼ browse · any other key returns to the log" });
-    ambientEl.appendChild(ambient.foot);
+    return null;
+  }
 
-    // Fit the text: the largest size whose whole commit fits beside the header and counts.
-    var room = stage.clientHeight - head.offsetHeight - stats.offsetHeight - 80;
+  // When the link card is on screen, its URL in the text only repeats it.
+  function ambientBodyText(c, picture) {
+    var text = String(c.body || "");
+    if (picture && picture.caption && picture.url) text = text.split(picture.url).join("").replace(/\n{3,}/g, "\n\n").trim();
+    return text;
+  }
+
+  function ambientFigure(picture) {
+    return h("figure", { class: "amb-media" }, h("img", { src: picture.src, alt: picture.alt }),
+      picture.caption ? h("figcaption", null, h("b", { text: picture.caption }), h("span", { class: "m", text: picture.host })) : null);
+  }
+
+  // Largest size at which the whole body fits in room pixels.
+  function fitAmbientBody(body, room) {
     for (var i = 0; i < AMBIENT_SIZES.length; i++) {
       body.style.fontSize = AMBIENT_SIZES[i] + "px";
       if (body.scrollHeight <= room) break;
     }
-    // Hang the node beside the avatar. The rail glides there (CSS transitions) while the commit fades in.
-    var top = Math.round(stage.offsetTop + text.offsetTop + head.offsetTop + head.offsetHeight / 2);
-    rail.knot.style.transform = "translateY(" + (top - 18) + "px)";
-    rail.upTrack.style.height = rail.upSeg.style.height = (top - 18) + "px";
-    rail.downTrack.style.transform = rail.downSeg.style.transform = "translateY(" + (top + 18) + "px)";
-    rail.downTrack.style.height = rail.downSeg.style.height = (1080 - top - 18) + "px";
-    if (rail.el.className.indexOf("still") >= 0) {
-      // First commit: place the rail without gliding from zero.
-      rail.el.offsetHeight; // apply positions before enabling transitions
-      setTimeout(function () { rail.el.className = "amb-rail"; }, 50);
-    }
-    setTimeout(function () { stage.className += " in"; }, 30);
   }
+
+  // The commit as header, text and counts, with the picture beside it. Appended to parent (before
+  // `before`) so it can be measured; returns the stage and its header.
+  function ambientCommit(c, parent, before, cls) {
+    var picture = ambientPicture(c);
+    var head = h("div", { class: "amb-head" }, avatar(c.author, 96),
+      h("div", { class: "amb-who" },
+        h("div", { class: "amb-name", text: c.author.name || c.author.username }),
+        h("div", { class: "m amb-meta", text: "@" + c.author.username + " · " + ago(c.created_at) + " · " + c.short_hash })));
+    var body = bodyNode(ambientBodyText(c, picture), false);
+    body.className = "body amb-body";
+    var stats = h("div", { class: "m amb-stats" },
+      h("span", null, icon("star"), String(c.stars_count)),
+      h("span", null, icon("reply"), c.replies_count + (c.replies_count === 1 ? " reply" : " replies")));
+    var stage = h("div", { class: "amb-stage" + (cls ? " " + cls : "") + (picture ? " with-media" : "") },
+      h("div", { class: "amb-text" }, head, body, stats), picture ? ambientFigure(picture) : null);
+    parent.insertBefore(stage, before);
+    fitAmbientBody(body, stage.clientHeight - head.offsetHeight - stats.offsetHeight - 80);
+    return { stage: stage, head: head };
+  }
+
+  // Cross-fade: the old stage fades out while the new one fades in over the same time.
+  function crossFade(oldStage, newStage, ms) {
+    if (oldStage) {
+      oldStage.style.transitionDuration = ms + "ms";
+      oldStage.className = oldStage.className.replace(" in", "");
+      ambientLater(function () { if (oldStage.parentNode) oldStage.parentNode.removeChild(oldStage); }, ms);
+    }
+    newStage.style.transitionDuration = ms + "ms";
+    newStage.offsetHeight;
+    ambientLater(function () { newStage.className += " in"; }, 30);
+  }
+
+  var AMBIENT_STYLE_IMPL = {};
+
+  // Scroll: the screen is a git log that scrolls. Each commit is a full screen with its own node on the
+  // rail, and the next commit rises from below. The line under the node fills while the commit is on
+  // screen and reaches the bottom edge as the scroll starts, where the next screen's line above its
+  // node, already in that lane color, carries it on.
+  AMBIENT_STYLE_IMPL.scroll = {
+    start: function (a) {
+      a.slide = this.slide(a, a.commits[0], null);
+      a.slide.style.transform = "translateY(0)";
+      runFill(a.slide.fill, "amb-bar amb-fill", a.slide.color, 0);
+    },
+    go: function (a, dir, manual) {
+      var ms = manual ? AMBIENT_STEP_MS : AMBIENT_SCROLL_MS;
+      var old = a.slide;
+      // Only an automatic step arrives with the previous lane's line complete; after a CH press it is
+      // cut short, so the line above the new node stays plain rail.
+      var next = this.slide(a, a.commits[a.index], manual ? null : old.color);
+      next.style.transform = "translateY(" + (dir * 1080) + "px)";
+      next.offsetHeight; // place it off screen before the transition starts
+      [old, next].forEach(function (el) { el.style.transition = "transform " + ms + "ms cubic-bezier(.65, 0, .35, 1)"; });
+      old.style.transform = "translateY(" + (-dir * 1080) + "px)";
+      next.style.transform = "translateY(0)";
+      old.fill.style.animationPlayState = "paused";
+      a.slide = next;
+      ambientLater(function () { if (old.parentNode) old.parentNode.removeChild(old); }, ms);
+      runFill(next.fill, "amb-bar amb-fill", next.color, ms);
+      return ms;
+    },
+    // upColor colors the line above the node (the previous lane arriving), or null for plain rail.
+    slide: function (a, c, upColor) {
+      var up = h("i", { class: "amb-bar" });
+      var fill = h("i");
+      var knot = h("i", { class: "amb-knot", style: "color:" + laneOf(c.author.id) });
+      var slide = h("div", { class: "amb-slide", style: "transform:translateY(1080px)" }, h("i", { class: "amb-bar amb-line" }), up, fill, knot);
+      ambientEl.insertBefore(slide, a.clock);
+      var shown = ambientCommit(c, slide, null, null);
+      // Hang the node beside the avatar.
+      var top = Math.round(shown.head.getBoundingClientRect().top - slide.getBoundingClientRect().top + shown.head.offsetHeight / 2);
+      knot.style.top = (top - 18) + "px";
+      up.style.top = "0";
+      up.style.height = (top - 18) + "px";
+      if (upColor) up.style.background = upColor;
+      fill.style.top = (top + 18) + "px";
+      slide.fill = fill;
+      slide.color = laneOf(c.author.id);
+      return slide;
+    }
+  };
+
+  // Still: the node stays at a fixed height with the author beside it; commits cross-fade in place,
+  // the node takes the new lane color, and the line below it fills.
+  AMBIENT_STYLE_IMPL.still = {
+    start: function (a) {
+      a.fill = h("i");
+      a.knot = h("i", { class: "amb-knot", style: "top:182px" });
+      [h("i", { class: "amb-bar amb-line" }), a.fill, a.knot].forEach(function (el) { ambientEl.insertBefore(el, a.clock); });
+      this.show(a, 600);
+    },
+    go: function (a, dir, manual) { var ms = manual ? 300 : 900; this.show(a, ms); return ms; },
+    show: function (a, ms) {
+      var c = a.commits[a.index];
+      var old = a.stage;
+      a.stage = ambientCommit(c, ambientEl, a.clock, "fade top").stage;
+      crossFade(old, a.stage, ms);
+      a.knot.style.color = laneOf(c.author.id);
+      a.fill.style.top = "218px";
+      runFill(a.fill, "amb-bar amb-fill", laneOf(c.author.id), ms);
+    }
+  };
+
+  // Timeline: the rail lies along the bottom with a node per commit. Visited nodes keep their lane
+  // color, the current one is larger, and the line fills toward the next.
+  AMBIENT_STYLE_IMPL.timeline = {
+    start: function (a) {
+      var n = a.commits.length;
+      var gap = n > 1 ? 1600 / (n - 1) : 0;
+      var tl = h("div", { class: "amb-tl" });
+      a.segs = [];
+      a.dots = [];
+      a.commits.forEach(function (c, k) {
+        if (k < n - 1) {
+          var fill = h("i");
+          tl.appendChild(h("div", { class: "seg", style: "left:" + (k * gap) + "px;width:" + gap + "px" }, fill));
+          a.segs.push(fill);
+        }
+        var dot = h("i", { class: "dot", style: "left:" + (k * gap) + "px;color:" + laneOf(c.author.id) });
+        tl.appendChild(dot);
+        a.dots.push(dot);
+      });
+      ambientEl.insertBefore(tl, a.clock);
+      this.show(a, 600);
+    },
+    go: function (a, dir, manual) { var ms = manual ? 300 : 700; this.show(a, ms); return ms; },
+    show: function (a, ms) {
+      var old = a.stage;
+      a.stage = ambientCommit(a.commits[a.index], ambientEl, a.clock, "fade wide").stage;
+      crossFade(old, a.stage, ms);
+      a.dots.forEach(function (d, k) { d.className = "dot" + (k < a.index ? " done" : k === a.index ? " now" : ""); });
+      a.segs.forEach(function (f, k) {
+        if (k === a.index) { runFill(f, "amb-fill-x", laneOf(a.commits[k].author.id), ms); return; }
+        f.className = "";
+        f.style.background = laneOf(a.commits[k].author.id);
+        f.style.transform = k < a.index ? "scaleX(1)" : "scaleX(0)";
+      });
+    }
+  };
+
+  // Terminal: `$ git show <hash>` types out, then the commit types itself in large type behind a caret
+  // and holds. A text gauge counts the time down.
+  AMBIENT_STYLE_IMPL.terminal = {
+    start: function (a) {
+      a.term = h("div", { class: "amb-term" });
+      a.gauge = h("div", { class: "m amb-gauge" });
+      ambientEl.insertBefore(a.term, a.clock);
+      ambientEl.insertBefore(a.gauge, a.clock);
+      this.show(a, 0);
+    },
+    go: function (a, dir, manual) { var ms = manual ? 150 : 300; this.show(a, ms); return ms; },
+    show: function (a, ms) {
+      var self = this;
+      a.timers.forEach(clearTimeout);
+      a.timers = [];
+      a.term.className = "amb-term out";
+      a.term.style.transitionDuration = ms + "ms";
+      ambientLater(function () { self.type(a); }, ms);
+      var start = Date.now() + ms;
+      var c = a.commits[a.index];
+      (function tick() {
+        var done = Math.max(0, Math.min(1, (Date.now() - start) / AMBIENT_MS));
+        var filled = Math.round(24 * done);
+        a.gauge.textContent = "[" + new Array(filled + 1).join("#") + new Array(25 - filled).join("·") + "] " +
+          (a.index + 1) + "/" + a.commits.length + "   ☆ " + c.stars_count + "   ↩ " + c.replies_count;
+        if (done < 1) ambientLater(tick, 250);
+      })();
+    },
+    type: function (a) {
+      var c = a.commits[a.index];
+      var picture = ambientPicture(c);
+      var text = ambientBodyText(c, picture);
+      var cmd = h("div", { class: "cmd" });
+      var who = h("div", { class: "who" }, avatar(c.author, 64), h("i", { class: "dot", style: "color:" + laneOf(c.author.id) }),
+        h("span", { text: (c.author.name || c.author.username) + "  @" + c.author.username + "  " + ago(c.created_at) }));
+      var body = h("div", { class: "body amb-body" });
+      var caret = h("span", { class: "caret" });
+      var column = h("div", { class: "amb-text" }, cmd, who, body);
+      a.term.textContent = "";
+      a.term.className = "amb-term" + (picture ? " with-media" : "");
+      a.term.appendChild(column);
+      if (picture) a.term.appendChild(ambientFigure(picture));
+      who.style.visibility = "hidden";
+      // Fit against the finished text, then empty it for typing.
+      var rich = bodyNode(text, false);
+      while (rich.firstChild) body.appendChild(rich.firstChild);
+      fitAmbientBody(body, a.term.clientHeight - cmd.offsetHeight - who.offsetHeight - 160);
+      var finished = Array.prototype.slice.call(body.childNodes);
+      body.textContent = "";
+      var line = "$ git show " + c.short_hash;
+      var i = 0;
+      (function typeCmd() {
+        cmd.textContent = line.slice(0, ++i);
+        if (i < line.length) { ambientLater(typeCmd, 45); return; }
+        ambientLater(function () {
+          who.style.visibility = "";
+          var j = 0;
+          var step = Math.max(12, Math.min(40, 2600 / Math.max(1, text.length)));
+          (function typeBody() {
+            j = Math.min(text.length, j + 1);
+            body.textContent = text.slice(0, j);
+            body.appendChild(caret);
+            if (j < text.length) { ambientLater(typeBody, step); return; }
+            // Typed out: swap in the version with mentions and links colored.
+            body.textContent = "";
+            finished.forEach(function (node) { body.appendChild(node); });
+            body.appendChild(caret);
+          })();
+        }, 250);
+      })();
+    }
+  };
 
   // The hint shows when ambient starts and after each CH press, then fades so the screen stays calm.
   function showAmbientHint() {
@@ -997,8 +1238,9 @@
   function stopAmbient() {
     if (!ambient) return;
     clearTimeout(ambient.timer);
-    clearTimeout(ambient.transition);
+    clearTimeout(ambient.moving);
     clearTimeout(ambient.hintTimer);
+    ambient.timers.forEach(clearTimeout);
     ambient = null;
     ambientEl.className = "hidden";
     ambientEl.textContent = "";
@@ -1019,8 +1261,8 @@
     var code = e.keyCode;
     var handled = true;
     if (ambient) {
-      if (code === KEY.CH_UP || code === KEY.PAGE_UP) stepAmbient(-1, false);
-      else if (code === KEY.CH_DOWN || code === KEY.PAGE_DOWN) stepAmbient(1, false);
+      if (code === KEY.CH_UP || code === KEY.PAGE_UP) stepAmbient(-1, true);
+      else if (code === KEY.CH_DOWN || code === KEY.PAGE_DOWN) stepAmbient(1, true);
       else stopAmbient();
     }
     else if (viewer) viewerKey(code);

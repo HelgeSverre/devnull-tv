@@ -28,8 +28,9 @@ public API.
 | **Profile** | Avatar with lane ring, mirrored GitHub details, counts, the public activity graph, and Commits / Replies tabs. |
 | **Image viewer** | Full-screen images, stepping through a commit's images. |
 | **People** | The TV's own follow list: add a GitHub username (checked against the API first) or remove one. Stored on the TV. |
-| **Ambient** | After two idle minutes, or on PLAY, the latest commits one at a time, read from across the room. The text takes the largest size (104 to 40 px) at which the whole commit fits; an image, or a short commit's link picture, sits beside it. The rail under the author fills as a 12 s timer, a clock sits in the corner, and the key hint fades after 5 s (`AMBIENT_HINT_MS`). CH ▲▼ browses; any other key returns. |
-| **About** | Data source, refresh rate and the TV's web engine version. |
+| **Ambient** | After two idle minutes, or on PLAY, the latest commits one at a time, read from across the room. The text takes the largest size (104 to 40 px) at which the whole commit fits; an image, or a short commit's link picture, sits beside it. Each commit shows for 12 s (`AMBIENT_MS`) in one of four styles picked in Settings: **Scroll** (the log scrolls up, one node per screen on a continuous rail), **Still** (commits cross-fade beside a fixed node), **Timeline** (a row of nodes along the bottom) or **Terminal** (`git show`, then the commit types itself out). The key hint fades after 5 s (`AMBIENT_HINT_MS`). CH ▲▼ browses; any other key returns. |
+| **Settings** | The ambient style, stored on the TV. PLAY previews it. |
+| **About** | What dev-null.sh is, the refresh rate and the TV's web engine version. |
 
 ### Remote keys
 
@@ -39,7 +40,7 @@ public API.
 | ◀ ▶ | ◀ opens the menu; on a commit, move between author, link and images; on a profile's tabs, switch tabs |
 | OK | Open the focused commit, author, link (in the TV's browser) or image |
 | CH ▲ ▼ | Jump 5 commits; on the commit page, previous / next commit; in ambient mode, newer / older commit |
-| PLAY | Ambient mode |
+| PLAY | Ambient mode (also previews the style on Settings) |
 | BACK | Back; on the log, exit |
 
 ## Install on your TV
