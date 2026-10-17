@@ -881,28 +881,67 @@
       paintAmbient();
     };
     if (!fade) { go(); showAmbientHint(); startAmbientTimer(); return; }
-    Array.prototype.forEach.call(ambientEl.querySelectorAll(".block, .media"), function (el) { el.className += " fade"; });
+    var stage = ambientEl.querySelector(".amb-stage");
+    if (stage) stage.className = stage.className.replace(" in", "");
     setTimeout(go, 650);
   }
+
+  // Ambient: one commit at a time, read from across the room. The commit text is the content, so it
+  // gets the largest size at which all of it fits; an image or link picture sits beside it when present.
+  var AMBIENT_SIZES = [104, 92, 82, 74, 66, 58, 52, 46, 40];
+  var AMBIENT_LINK_PICTURE_MAX = 160; // characters
 
   function paintAmbient() {
     var c = ambient.commits[ambient.index];
     var color = laneOf(c.author.id);
-    var image = c.images && c.images.length ? c.images[0] : null;
+    var lp = c.link_preview;
+    // A commit's own image always shows. A link's picture only joins short commits: on a long one it
+    // would squeeze the text, and the link is already in the text.
+    var picture = c.images && c.images.length ? { src: c.images[0].url, alt: c.images[0].description || "" }
+      : (lp && lp.image_url && String(c.body || "").length <= AMBIENT_LINK_PICTURE_MAX
+        ? { src: lp.image_url, alt: lp.title || "", caption: lp.title, host: lp.site_name || shortUrl(lp.url) } : null);
+
     ambientEl.textContent = "";
-    ambientEl.appendChild(h("div", { class: "line", style: "background:linear-gradient(" + color + " 0, " + color + " 46%, var(--rail) 46%)" }));
-    ambientEl.appendChild(h("div", { class: "knot", style: "color:" + color }));
-    var block = h("div", { class: "block" + (image ? " with-image" : "") },
-      h("div", { class: "who-row" }, avatar(c.author, 104),
-        h("div", null, h("div", { style: "font-size:40px;font-weight:600", text: c.author.name || c.author.username }),
-          h("div", { class: "m", style: "font-size:30px", text: "@" + c.author.username + " · " + ago(c.created_at) + " · " + c.short_hash }))),
-      h("div", { class: "text", text: c.body }),
-      h("div", { class: "m", style: "margin-top:40px;font-size:30px", text: "★ " + c.stars_count + "   ↩ " + c.replies_count + (c.replies_count === 1 ? " reply" : " replies") }));
-    ambientEl.appendChild(block);
-    if (image) ambientEl.appendChild(h("div", { class: "media" }, h("img", { src: image.url, alt: image.description || "" })));
-    ambient.foot = h("div", { class: "m foot", text: (ambient.index + 1) + " / " + ambient.commits.length + " · CH ▲▼ browse · any other key returns to the log" });
+    var knot = h("i", { class: "amb-knot", style: "color:" + color });
+    var progress = h("i", { class: "amb-progress", style: "background:" + color + ";animation-duration:" + AMBIENT_MS + "ms" });
+    ambientEl.appendChild(h("div", { class: "amb-rail" }, h("i", { class: "amb-up" }), progress, knot));
+    ambientEl.appendChild(h("div", { class: "m amb-clock", text: hhmm(new Date()) }));
+
+    var head = h("div", { class: "amb-head" }, avatar(c.author, 96),
+      h("div", { class: "amb-who" },
+        h("div", { class: "amb-name", text: c.author.name || c.author.username }),
+        h("div", { class: "m amb-meta", text: "@" + c.author.username + " · " + ago(c.created_at) + " · " + c.short_hash })));
+    // When the link card is on screen, its URL in the text only repeats it.
+    var bodyText = String(c.body || "");
+    if (picture && picture.caption && lp && lp.url) bodyText = bodyText.split(lp.url).join("").replace(/\n{3,}/g, "\n\n").trim();
+    var body = bodyNode(bodyText, false);
+    body.className = "body amb-body";
+    var stats = h("div", { class: "m amb-stats" },
+      h("span", null, icon("star"), String(c.stars_count)),
+      h("span", null, icon("reply"), c.replies_count + (c.replies_count === 1 ? " reply" : " replies")));
+    var text = h("div", { class: "amb-text" }, head, body, stats);
+    var stage = h("div", { class: "amb-stage" + (picture ? " with-media" : "") }, text);
+    if (picture) {
+      stage.appendChild(h("figure", { class: "amb-media" }, h("img", { src: picture.src, alt: picture.alt }),
+        picture.caption ? h("figcaption", null, h("b", { text: picture.caption }), h("span", { class: "m", text: picture.host })) : null));
+    }
+    ambientEl.appendChild(stage);
+    ambient.foot = h("div", { class: "m foot" + (ambient.hintHidden ? " faded" : ""),
+      text: (ambient.index + 1) + " / " + ambient.commits.length + " · CH ▲▼ browse · any other key returns to the log" });
     ambientEl.appendChild(ambient.foot);
-    if (ambient.hintHidden) ambient.foot.className = "m foot faded";
+
+    // Fit the text: the largest size whose whole commit fits beside the header and counts.
+    var room = stage.clientHeight - head.offsetHeight - stats.offsetHeight - 80;
+    for (var i = 0; i < AMBIENT_SIZES.length; i++) {
+      body.style.fontSize = AMBIENT_SIZES[i] + "px";
+      if (body.scrollHeight <= room) break;
+    }
+    // Hang the node beside the avatar.
+    var top = stage.offsetTop + text.offsetTop + head.offsetTop + head.offsetHeight / 2;
+    knot.style.top = (top - 18) + "px";
+    ambientEl.querySelector(".amb-up").style.height = (top - 18) + "px";
+    progress.style.top = (top + 18) + "px";
+    setTimeout(function () { stage.className += " in"; }, 30);
   }
 
   // The hint shows when ambient starts and after each CH press, then fades so the screen stays calm.

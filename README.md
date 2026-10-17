@@ -28,7 +28,7 @@ public API.
 | **Profile** | Avatar with lane ring, mirrored GitHub details, counts, the public activity graph, and Commits / Replies tabs. |
 | **Image viewer** | Full-screen images, stepping through a commit's images. |
 | **People** | The TV's own follow list: add a GitHub username (checked against the API first) or remove one. Stored on the TV. |
-| **Ambient** | After two idle minutes, or on PLAY, the latest commits one at a time with their first image, large enough to read from the sofa. The key hint fades after 5 seconds (`AMBIENT_HINT_MS`); CH ▲▼ browses; any other key returns. |
+| **Ambient** | After two idle minutes, or on PLAY, the latest commits one at a time, read from across the room. The text takes the largest size (104 to 40 px) at which the whole commit fits; an image, or a short commit's link picture, sits beside it. The rail under the author fills as a 12 s timer, a clock sits in the corner, and the key hint fades after 5 s (`AMBIENT_HINT_MS`). CH ▲▼ browses; any other key returns. |
 | **About** | Data source, refresh rate and the TV's web engine version. |
 
 ### Remote keys
