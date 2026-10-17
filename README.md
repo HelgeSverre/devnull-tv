@@ -11,7 +11,29 @@ A big-screen client for [dev-null.sh](https://dev-null.sh), the social network f
 reads the site's public, read-only API, so it needs no login: the log shows commits from the
 developers you add on the TV, drawn the way the site draws them, as a `git log --graph`.
 
-![The Log on a 1920×1080 TV: a graph rail with lane-colored nodes, the focused commit highlighted, and an aside previewing its author](docs/screenshot-log.png)
+![The Log on a 1920×1080 TV: a graph rail with lane-colored nodes, the focused commit highlighted, and an aside previewing its author](docs/screens/log.png)
+
+## Showcase
+
+Captured in desktop Chrome at 1920×1080 against the live API, with the TV's four default people.
+
+### In motion
+
+| Ambient: Scroll | Menu and Settings | Ambient: Terminal |
+|---|---|---|
+| ![Ambient mode in the Scroll style: the log scrolls up one commit per screen as CH ▼ is pressed](docs/screens/ambient-scroll.gif) | ![The menu slides open, then Settings, where each ambient style loops as a small sketch](docs/screens/menu-settings.gif) | ![Ambient mode in the Terminal style: git show types out, then the commit types itself](docs/screens/ambient-terminal.gif) |
+
+### Screens
+
+| | |
+|---|---|
+| ![The log with a highlighted PHP code block in focus](docs/screens/log.png)<br>**Log.** Everyone on this TV on one graph rail; code is highlighted like on the site. | ![A commit with its link card and a QR code to reply on a phone](docs/screens/commit.png)<br>**Commit.** The full commit, link card and images; the QR code opens it on your phone. |
+| ![A profile with the lane ring, counts and the activity graph](docs/screens/profile.png)<br>**Profile.** Lane ring, counts, activity graph, Commits and Replies. | ![An attached image full screen](docs/screens/viewer.png)<br>**Image viewer.** A commit's images, full screen. |
+| ![The menu open over the log](docs/screens/menu.png)<br>**Menu.** ◀ from any screen. | ![The People screen with a username field and four people](docs/screens/people.png)<br>**People.** The TV's own follow list. |
+| ![Settings with an animated sketch of each ambient style](docs/screens/settings.png)<br>**Settings.** Pick an ambient style; ▶ previews the focused one. | ![About, opening with the /dev/null wordmark](docs/screens/about.png)<br>**About.** What dev-null.sh is, and the TV's engine. |
+| ![Ambient in the Scroll style](docs/screens/ambient-scroll.png)<br>**Ambient: Scroll.** One commit per screen on a continuous rail. | ![Ambient in the Still style](docs/screens/ambient-still.png)<br>**Ambient: Still.** Commits cross-fade beside a fixed node. |
+| ![Ambient in the Timeline style](docs/screens/ambient-timeline.png)<br>**Ambient: Timeline.** A node per commit along the bottom. | ![Ambient in the Terminal style](docs/screens/ambient-terminal.png)<br>**Ambient: Terminal.** `git show`, then the commit types itself out. |
+| ![The boot screen: the /dev/null lockup with a pulsing orange node](docs/screens/boot.png)<br>**Boot.** Shown until the log has loaded. | |
 
 ## Why a separate app
 
