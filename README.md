@@ -129,7 +129,8 @@ just run        # launch the installed app
 Desktop Chrome is fine for layout work, but it is far newer than the TV's engine. Keep to what the
 TV supports:
 
-- **JavaScript:** ES2017. No `?.`, `??`, private class fields or top-level `await`.
+- **JavaScript:** ES2017, plus the engine's RegExp lookbehind and `\p{…}` escapes. No `?.`, `??`,
+  private class fields or top-level `await`.
 - **CSS:** no `gap` on flex containers (grid `gap` is fine), `inset`, `aspect-ratio`, `:has()`,
   `oklch()` or cascade layers.
 - **Text:** every commit body, name and bio goes through `textContent`, never `innerHTML`.

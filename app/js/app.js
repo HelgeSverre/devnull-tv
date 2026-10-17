@@ -1,6 +1,6 @@
 /* /dev/null on TV: a big-screen client for dev-null.sh's public read API.
- * Written for the Tizen 6 web engine (about Chromium 76): ES2017, no `?.`/`??`. All post text goes
- * through textContent, never innerHTML. */
+ * Written for the Tizen 6 web engine (about Chromium 76): ES2017 plus that engine's RegExp (lookbehind,
+ * \p{…} escapes), no `?.`/`??`. All post text goes through textContent, never innerHTML. */
 (function () {
   "use strict";
 
@@ -14,8 +14,8 @@
   var AMBIENT_HINT_MS = 5 * 1000;  // the counter and key hint fade out after this long
   var AMBIENT_SCROLL_MS = 1100;    // the log scrolling to the next commit
   var AMBIENT_STEP_MS = 550;       // the same scroll after a CH press
-  var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 10009, ESC: 27, BACKSPACE: 8,
-              CH_UP: 427, CH_DOWN: 428, PAGE_UP: 33, PAGE_DOWN: 34, PLAY: 415, PAUSE: 19, PLAY_PAUSE: 10252,
+  var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 10009, ESC: 27,
+              CH_UP: 427, CH_DOWN: 428, PAGE_UP: 33, PAGE_DOWN: 34, PLAY: 415, PLAY_PAUSE: 10252,
               IME_DONE: 65376, IME_CANCEL: 65385 };
 
   // ── small helpers ──────────────────────────────────────────────────────────────────────────────
@@ -69,8 +69,6 @@
     try { localStorage.setItem("devnull." + key, JSON.stringify(value)); } catch (e) { /* storage full or blocked */ }
   }
 
-  // The site's automatic lane: a 31-hash of the user id, mod 6 (User::automaticLane). A lane someone
-  // picked in Settings isn't in the public API, so those people show their automatic color here.
   // Lanes. People can pick their lane color on dev-null.sh, but the public API doesn't return it, so
   // learnLane reads it from their activity graph and keeps it on the TV. Until then, and for anyone
   // not on this TV, the automatic lane: the site's hash of the user id (User::automaticLane).
@@ -225,7 +223,10 @@
     if (userCache[username]) return Promise.resolve(userCache[username]);
     return getJSON("/users/" + encodeURIComponent(username)).then(function (json) {
       userCache[username] = json.data;
-      learnLane(json.data).then(function (changed) { if (changed) repaint(); });
+      learnLane(json.data).then(function (changed) {
+        // Not while someone is typing: a redraw would take the field away.
+        if (changed && !(document.activeElement && document.activeElement.tagName === "INPUT")) redraw(screen);
+      });
       return json.data;
     });
   }
@@ -253,8 +254,8 @@
   var stack = [];          // screens to return to with Back
   var screen = null;       // current screen object
   var nav = { open: false, index: 0, items: [["log", "Log"], ["people", "People"], ["ambient", "Ambient"], ["settings", "Settings"], ["about", "About"]] };
-  var viewer = null;       // { images, index, commit }
-  var ambient = null;      // { index, timer }
+  var viewer = null;       // { commit, index } while the image viewer is open
+  var ambient = null;      // ambient session state while ambient mode runs (see startAmbient)
   var idleTimer = null;
 
   function show(next, push) {
@@ -266,19 +267,18 @@
     renderNav();
   }
 
-  // Draw the current screen again with fresh data, keeping its focus.
-  function repaint() {
-    if (!screen || (document.activeElement && document.activeElement.tagName === "INPUT")) return;
+  // Draw a screen again with fresh data, keeping its focus, if it is still the one on show.
+  function redraw(s) {
+    if (!s || s !== screen) return;
     main.textContent = "";
-    screen.render(main);
+    s.render(main);
   }
 
   function back() {
     if (stack.length) {
       if (screen && screen.leave) screen.leave();
       screen = stack.pop();
-      main.textContent = "";
-      screen.render(main);
+      redraw(screen);
       renderNav();
       return;
     }
@@ -352,8 +352,10 @@
     return col;
   }
 
+  // opts.lazy: large images wait in data-src until hydrateRows loads them (long lists only).
   function commitRow(c, prev, opts) {
     opts = opts || {};
+    function picture(src, alt) { return h("img", opts.lazy ? { "data-src": src, alt: alt } : { src: src, alt: alt }); }
     var head = h("div", { class: "head" },
       avatar(c.author, 72),
       h("span", { class: "name", text: c.author.name || c.author.username }),
@@ -366,14 +368,14 @@
     var lp = c.link_preview;
     if (lp && lp.url) {
       var card = h("div", { class: "linkcard" });
-      if (lp.image_url) card.appendChild(h("img", { src: lp.image_url, alt: "" }));
+      if (lp.image_url) card.appendChild(picture(lp.image_url, ""));
       card.appendChild(h("div", { class: "t" }, h("b", { text: lp.title || lp.url }),
         h("span", { class: "m", text: lp.site_name || shortUrl(lp.url) })));
       content.appendChild(card);
     }
     if (c.images && c.images.length) {
       var thumbs = h("div", { class: "thumbs" });
-      c.images.slice(0, 3).forEach(function (image) { thumbs.appendChild(h("img", { src: image.url, alt: image.description || "" })); });
+      c.images.slice(0, 3).forEach(function (image) { thumbs.appendChild(picture(image.url, image.description || "")); });
       content.appendChild(thumbs);
     }
     var actions = h("div", { class: "actions m" });
@@ -383,6 +385,19 @@
     actions.appendChild(reply);
     content.appendChild(actions);
     return h("div", { class: "row" + (opts.focus ? " focus" : "") }, railcol(c, prev, opts.last), content);
+  }
+
+  // Load the large images of the rows around the focused one: the scroller shows about four rows, so a
+  // long log doesn't fetch and decode every picture up front. Image boxes have fixed heights, so
+  // loading one never moves the list.
+  function hydrateRows(rows, focus) {
+    if (!rows) return;
+    for (var i = Math.max(0, focus - 2); i < Math.min(rows.length, focus + 6); i++) {
+      Array.prototype.forEach.call(rows[i].querySelectorAll("img[data-src]"), function (img) {
+        img.src = img.getAttribute("data-src");
+        img.removeAttribute("data-src");
+      });
+    }
   }
 
   function markerRow(text, laneColor, dashed) {
@@ -426,7 +441,7 @@
       go ? h("div", { class: "go", text: go }) : null);
   }
 
-  // Keeps a focused row about a third of the way down the scroller.
+  // Keeps a focused row about a fifth of the way down the scroller.
   function scrollTo(inner, row, scroller) {
     if (!inner || !row) return;
     var offset = Math.max(0, row.offsetTop - Math.round(scroller.clientHeight * 0.18));
@@ -437,14 +452,13 @@
 
   var logScreen = {
     name: "log", section: "log",
-    commits: [], focus: 0, pending: null, loaded: false, error: null, fetchedAt: null, poll: null,
+    commits: [], focus: 0, pending: null, newCount: 0, loaded: false, error: null, fetchedAt: null,
 
     render: function (root) {
       var self = this;
-      var head = h("div", { class: "feed-head" }, h("h1", { text: "Log" }));
-      if (this.pending && this.newCount) head.appendChild(h("div", { class: "pill", text: "↑ " + this.newCount + " new commit" + (this.newCount === 1 ? "" : "s") }));
-      head.appendChild(h("span", { class: "m", text: people.length + " developer" + (people.length === 1 ? "" : "s") + (this.fetchedAt ? " · " + hhmm(this.fetchedAt) : "") }));
-      var feed = h("main", { class: "feed" }, head);
+      this.head = h("div", { class: "feed-head" });
+      this.renderHead();
+      var feed = h("main", { class: "feed" }, this.head);
       this.aside = h("aside", { class: "aside" });
       root.appendChild(feed);
       root.appendChild(this.aside);
@@ -481,7 +495,7 @@
           self.inner.appendChild(markerRow("HEAD@{last visit}", laneOf(prev.author.id), true));
           markedVisit = true;
         }
-        var row = commitRow(c, prev, { focus: i === self.focus, last: i === self.commits.length - 1 });
+        var row = commitRow(c, prev, { focus: i === self.focus, last: i === self.commits.length - 1, lazy: true });
         self.rows.push(row);
         self.inner.appendChild(row);
         prev = c;
@@ -490,7 +504,17 @@
       this.scroller.appendChild(this.inner);
       feed.appendChild(this.scroller);
       this.renderAside();
+      hydrateRows(this.rows, this.focus);
       setTimeout(function () { scrollTo(self.inner, self.rows[self.focus], self.scroller); }, 0);
+    },
+
+    // The title, the new-commits pill and the fetch time; a poll that finds nothing new redraws only this.
+    renderHead: function () {
+      var head = this.head;
+      head.textContent = "";
+      head.appendChild(h("h1", { text: "Log" }));
+      if (this.pending && this.newCount) head.appendChild(h("div", { class: "pill", text: "↑ " + this.newCount + " new commit" + (this.newCount === 1 ? "" : "s") }));
+      head.appendChild(h("span", { class: "m", text: people.length + " developer" + (people.length === 1 ? "" : "s") + (this.fetchedAt ? " · " + hhmm(this.fetchedAt) : "") }));
     },
 
     renderAside: function () {
@@ -516,11 +540,15 @@
       this.focus = index;
       this.rows[index].className = "row focus";
       scrollTo(this.inner, this.rows[index], this.scroller);
+      hydrateRows(this.rows, index);
       this.renderAside();
     },
 
     refresh: function () {
       var self = this;
+      var full = !this.loaded || !this.commits.length; // otherwise only the head may change
+      var errorBefore = this.error;
+      var newBefore = this.newCount;
       if (!people.length) return Promise.resolve();
       people.forEach(function (u) { getUser(u).catch(function () {}); });
       return Promise.all(people.map(function (u) { return getCommits(u).catch(function (e) { return e; }); }))
@@ -547,7 +575,10 @@
           }
         })
         .catch(function (e) { self.error = e.message || String(e); })
-        .then(function () { if (screen === self) { main.textContent = ""; self.render(main); } });
+        .then(function () {
+          if (full || self.error !== errorBefore || self.newCount !== newBefore) redraw(self);
+          else if (screen === self) self.renderHead();
+        });
     },
 
     applyPending: function () {
@@ -556,8 +587,7 @@
       this.pending = null;
       this.newCount = 0;
       this.focus = 0;
-      main.textContent = "";
-      this.render(main);
+      redraw(this);
     },
 
     key: function (code) {
@@ -639,7 +669,7 @@
             if (!fresh.parent_id) return null;
             return getCommit(fresh.parent_id).then(function (p) { self.parent = p; }).catch(function () {});
           }).catch(function () {}).then(function () {
-            if (screen === self) { main.textContent = ""; self.render(main); }
+            redraw(self);
           });
         }
       },
@@ -679,8 +709,7 @@
             if (i < 0 || i >= list.length) return true;
             screen = commitScreen(list[i], list, i);
             if (logScreen.commits === list) logScreen.focus = i;
-            main.textContent = "";
-            screen.render(main);
+            redraw(screen);
             return true;
           }
         }
@@ -737,12 +766,13 @@
           } else {
             var prev = null;
             list.forEach(function (c, i) {
-              var row = commitRow(c, prev, { focus: i === self.focus, last: i === list.length - 1 });
+              var row = commitRow(c, prev, { focus: i === self.focus, last: i === list.length - 1, lazy: true });
               self.rows.push(row);
               self.inner.appendChild(row);
               prev = c;
             });
           }
+          hydrateRows(this.rows, Math.max(0, this.focus));
           setTimeout(function () {
             if (self.focus >= 0) scrollTo(self.inner, self.rows[self.focus], self.scroller);
           }, 0);
@@ -759,16 +789,30 @@
         }
       },
 
+      // Moves focus between the tabs (-1) and the list by restyling, without rebuilding the profile.
+      setFocus: function (index) {
+        var list = this.lists[this.tab] || [];
+        index = Math.max(-1, Math.min(list.length - 1, index));
+        if (index === this.focus || !this.rows || !this.tabsEl) return;
+        if (this.rows[this.focus]) this.rows[this.focus].className = "row";
+        this.focus = index;
+        if (this.rows[index]) this.rows[index].className = "row focus";
+        this.tabsEl.className = "tabs" + (index === -1 ? " focus" : "");
+        if (index >= 0) scrollTo(this.inner, this.rows[index], this.scroller);
+        else this.inner.style.transform = "translateY(0)";
+        hydrateRows(this.rows, Math.max(0, index));
+      },
+
       loadTab: function () {
         var self = this;
         var tab = this.tab;
-        if (!this.user) { if (screen === self) { main.textContent = ""; self.render(main); } return; }
+        if (!this.user) { redraw(self); return; }
         this.loadingTab = true;
         getCommits(username, tab === 1).then(function (list) { self.lists[tab] = list; })
           .catch(function () { self.lists[tab] = []; })
           .then(function () {
             self.loadingTab = false;
-            if (screen === self) { main.textContent = ""; self.render(main); }
+            redraw(self);
           });
       },
 
@@ -781,12 +825,8 @@
           case KEY.RIGHT:
             if (this.focus === -1 && this.tab === 0) { this.tab = 1; this.rerender(); }
             return true;
-          case KEY.UP:
-            if (this.focus > -1) { this.focus -= 1; this.rerender(); }
-            return true;
-          case KEY.DOWN:
-            if (this.focus < list.length - 1) { this.focus += 1; this.rerender(); }
-            return true;
+          case KEY.UP: this.setFocus(this.focus - 1); return true;
+          case KEY.DOWN: this.setFocus(this.focus + 1); return true;
           case KEY.ENTER:
             if (this.focus >= 0 && list[this.focus]) show(commitScreen(list[this.focus], list, this.focus), true);
             return true;
@@ -794,7 +834,7 @@
         return false;
       },
 
-      rerender: function () { main.textContent = ""; this.render(main); }
+      rerender: function () { redraw(this); }
     };
   }
 
@@ -888,7 +928,7 @@
       return false;
     },
 
-    rerender: function () { main.textContent = ""; this.render(main); }
+    rerender: function () { redraw(this); }
   };
 
   // ── About ──────────────────────────────────────────────────────────────────────────────────────
