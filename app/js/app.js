@@ -951,41 +951,48 @@
     name: "settings", section: "settings",
     focus: 0,
 
+    // Rows are built once per visit; moving focus or picking a style only restyles them, so the
+    // sketches keep looping instead of restarting on every key press.
     render: function (root) {
-      var self = this;
       var feed = h("main", { class: "feed" },
         h("div", { class: "feed-head" }, h("h1", { text: "Settings" }), h("span", { class: "m", text: "stored on this TV" })),
         h("div", { class: "m setting-label", text: "ambient style" }));
-      AMBIENT_STYLES.forEach(function (style, i) {
-        var on = ambientStyle === style[0];
-        var focused = self.focus === i;
-        feed.appendChild(h("div", { class: "option" + (focused ? " focus" : "") + (on ? " on" : "") },
-          h("i", { class: "radio" }),
-          styleThumb(style[0]),
-          h("div", { class: "who-line" }, h("div", { class: "name", text: style[1] }), h("div", { class: "m", text: style[2] })),
-          // Always there (hidden unless focused or in use), so the description never reflows.
-          h("span", { class: "m act", text: on ? "in use" : "OK use" })));
+      this.rows = AMBIENT_STYLES.map(function (style) {
+        var act = h("span", { class: "m act" }); // always there (hidden unless focused or in use), so nothing reflows
+        var row = h("div", { class: "option" }, h("i", { class: "radio" }), styleThumb(style[0]),
+          h("div", { class: "who-line" }, h("div", { class: "name", text: style[1] }), h("div", { class: "m", text: style[2] })), act);
+        row.act = act;
+        feed.appendChild(row);
+        return row;
       });
+      this.update();
       root.appendChild(feed);
       root.appendChild(h("aside", { class: "aside" }, keysBlock([["▲ ▼", "move"], ["OK", "use this style"], ["▶ PLAY", "preview the focused style"], ["◀", "menu"]])));
     },
 
+    update: function () {
+      var self = this;
+      this.rows.forEach(function (row, i) {
+        var on = ambientStyle === AMBIENT_STYLES[i][0];
+        row.className = "option" + (self.focus === i ? " focus" : "") + (on ? " on" : "");
+        row.act.textContent = on ? "in use" : "OK use";
+      });
+    },
+
     key: function (code) {
       switch (code) {
-        case KEY.UP: this.focus = Math.max(0, this.focus - 1); this.rerender(); return true;
-        case KEY.DOWN: this.focus = Math.min(AMBIENT_STYLES.length - 1, this.focus + 1); this.rerender(); return true;
+        case KEY.UP: this.focus = Math.max(0, this.focus - 1); this.update(); return true;
+        case KEY.DOWN: this.focus = Math.min(AMBIENT_STYLES.length - 1, this.focus + 1); this.update(); return true;
         case KEY.LEFT: openNav(); return true;
         case KEY.ENTER:
           ambientStyle = AMBIENT_STYLES[this.focus][0];
           save("ambientStyle", ambientStyle);
-          this.rerender();
+          this.update();
           return true;
         case KEY.PLAY: case KEY.PLAY_PAUSE: startAmbient(AMBIENT_STYLES[this.focus][0]); return true;
       }
       return false;
-    },
-
-    rerender: function () { main.textContent = ""; this.render(main); }
+    }
   };
 
   // ── Image viewer ───────────────────────────────────────────────────────────────────────────────
