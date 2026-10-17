@@ -904,7 +904,7 @@
         kv.appendChild(h("span", { style: pair[0] === "engine" ? "font-size:22px;color:var(--muted)" : null, text: pair[1] }));
       });
       feed.appendChild(h("div", { class: "about" },
-        h("p", null, wordmark(), " is the social network for developers. Posts are commits on one log, drawn like git log --graph, and every developer has their own lane color."),
+        h("p", null, wordmark(), " is the social network for developers.", h("br"), "Posts are commits on one log, drawn like git log --graph, and every developer has their own lane color."),
         kv));
       root.appendChild(feed);
       root.appendChild(h("aside", { class: "aside" }, keysBlock([["◀", "menu"], ["BACK", "back"]])));
