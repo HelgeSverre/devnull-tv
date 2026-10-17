@@ -143,9 +143,46 @@
     return path.length > 20 ? host + path.slice(0, 19) + "…" : host + path;
   }
 
+  // Code spans, as dev-null.sh finds them (app/Services/CodeSpans.php): a fenced block opens with 3+
+  // backticks at the start of a line and closes with a line of 3+ backticks; inline code is one pair of
+  // single backticks on one line. An unterminated fence stays prose, backticks and all.
+  var CODE = /(?<![^\n])`{3,}[^`\r\n]*\r?\n(?:[\s\S]*?\r?\n)?`{3,}[ \t]*(?![^\r\n])|`[^`\r\n]+`/g;
+
+  // A commit body: prose with mentions, links and the /dev/null wordmark, plus inline code and code
+  // blocks, which stay literal. Clamped bodies (the log) cut at three lines, or, with a code block,
+  // at a fixed height, since line clamping can't cut through a block.
   function bodyNode(text, clamp, size) {
-    var node = h("div", { class: "body" + (clamp ? " clamp" : ""), style: size ? "font-size:" + size + "px" : null });
-    String(text || "").split(/(@[A-Za-z0-9-]+|https?:\/\/[^\s]+)/).forEach(function (part, i) {
+    text = String(text || "");
+    var node = h("div", { class: "body", style: size ? "font-size:" + size + "px" : null });
+    var parts = [];
+    var from = 0;
+    var m;
+    CODE.lastIndex = 0;
+    while ((m = CODE.exec(text))) {
+      parts.push({ prose: text.slice(from, m.index) }, { code: m[0] });
+      from = m.index + m[0].length;
+    }
+    parts.push({ prose: text.slice(from) });
+    var hasBlock = false;
+    parts.forEach(function (part, i) {
+      if (part.code !== undefined) {
+        if (part.code.charAt(1) !== "`") { node.appendChild(h("code", { class: "code", text: part.code.slice(1, -1) })); return; }
+        hasBlock = true;
+        node.appendChild(codeBlock(part.code));
+        return;
+      }
+      // The site drops one newline on each side of a block, so the block isn't padded by blank lines.
+      var prose = part.prose;
+      if (parts[i + 1] && /^```/.test(parts[i + 1].code || "")) prose = prose.replace(/\r?\n$/, "");
+      if (parts[i - 1] && /^```/.test(parts[i - 1].code || "")) prose = prose.replace(/^\r?\n/, "");
+      appendProse(node, prose);
+    });
+    if (clamp) node.className += hasBlock ? " clamp-code" : " clamp";
+    return node;
+  }
+
+  function appendProse(node, text) {
+    text.split(/(@[A-Za-z0-9-]+|https?:\/\/[^\s]+)/).forEach(function (part, i) {
       if (!part) return;
       if (i % 2 === 1) {
         var isMention = part.charAt(0) === "@";
@@ -154,12 +191,35 @@
         appendWithWordmarks(node, part);
       }
     });
-    return node;
+  }
+
+  // A fenced block: the language label from the info string's first word (as written), and the code,
+  // highlighted by highlight.js (a port of the site's highlighter) when it knows the language.
+  function codeBlock(fence) {
+    var lines = fence.replace(/\r/g, "").split("\n");
+    var lang = (lines[0].replace(/^`+/, "").trim().split(/\s+/)[0]) || "";
+    var code = lines.slice(1, -1).join("\n");
+    var pre = h("pre");
+    var hl = window.DevNullHighlight;
+    if (hl && lang && hl.supports(lang.toLowerCase())) appendSegments(pre, hl.tokenize(code, lang.toLowerCase()));
+    else pre.textContent = code;
+    return h("div", { class: "cb" }, lang ? h("div", { class: "cb-lang", text: lang }) : null, pre);
+  }
+
+  // Highlighter output to DOM: text nodes and span.hl-<type>, never HTML.
+  function appendSegments(parent, segments) {
+    segments.forEach(function (seg) {
+      if (typeof seg === "string") { parent.appendChild(document.createTextNode(seg)); return; }
+      var target = parent;
+      if (seg.type) { target = h("span", { class: "hl-" + seg.type }); parent.appendChild(target); }
+      if (seg.children) appendSegments(target, seg.children);
+      else target.appendChild(document.createTextNode(seg.text || ""));
+    });
   }
 
   // As on dev-null.sh, /dev/null on its own renders as the wordmark: semibold, tight, with the logo's
   // outlined orange slash. Its text stays "/dev/null". Longer paths and words (/dev/nullable,
-  // /dev/null/log, a/dev/null, /dev/null_1) and `inline code` stay plain.
+  // /dev/null/log, a/dev/null, /dev/null_1) stay plain; code never reaches here.
   var WORDMARK = "/dev/null";
   var WORDMARK_BEFORE = /[\p{L}\p{M}\p{N}_.\/-]/u;
   var WORDMARK_AFTER = /[\p{L}\p{M}\p{N}_\/-]/u;
@@ -182,20 +242,18 @@
   }
 
   function appendWithWordmarks(node, text) {
-    text.split(/(`[^`\n]*`)/).forEach(function (chunk, i) {
-      var from = 0;
-      var at = i % 2 ? -1 : chunk.indexOf(WORDMARK);
-      while (at >= 0) {
-        var end = at + WORDMARK.length;
-        if (!WORDMARK_BEFORE.test(chunk.charAt(at - 1)) && !WORDMARK_AFTER.test(chunk.charAt(end))) {
-          if (at > from) node.appendChild(document.createTextNode(chunk.slice(from, at)));
-          node.appendChild(wordmark());
-          from = end;
-        }
-        at = chunk.indexOf(WORDMARK, end);
+    var from = 0;
+    var at = text.indexOf(WORDMARK);
+    while (at >= 0) {
+      var end = at + WORDMARK.length;
+      if (!WORDMARK_BEFORE.test(text.charAt(at - 1)) && !WORDMARK_AFTER.test(text.charAt(end))) {
+        if (at > from) node.appendChild(document.createTextNode(text.slice(from, at)));
+        node.appendChild(wordmark());
+        from = end;
       }
-      if (from < chunk.length) node.appendChild(document.createTextNode(chunk.slice(from)));
-    });
+      at = text.indexOf(WORDMARK, end);
+    }
+    if (from < text.length) node.appendChild(document.createTextNode(text.slice(from)));
   }
 
   function avatar(user, size) {
@@ -1169,8 +1227,11 @@
 
   // Largest size at which the whole body fits in room pixels.
   function fitAmbientBody(body, room) {
+    var blocks = body.querySelectorAll(".cb");
     for (var i = 0; i < AMBIENT_SIZES.length; i++) {
       body.style.fontSize = AMBIENT_SIZES[i] + "px";
+      // Code blocks follow the text down but stop at 44px: long code lines wrap less.
+      for (var b = 0; b < blocks.length; b++) blocks[b].style.fontSize = Math.min(44, Math.round(AMBIENT_SIZES[i] * 0.85)) + "px";
       if (body.scrollHeight <= room) break;
     }
   }

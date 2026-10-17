@@ -16,13 +16,14 @@ Research notes, checked 2026-10-17. Nothing has been registered or submitted.
 - **Individuals can sign up.** The seller-information form says individual accounts need no registration number. [Entering Application Information](https://developer.samsung.com/tv-seller-office/guides/applications/entering-application-information.html)
 - **Partnership is the blocker for Norway.** It needs a contract, and partner rights go to a seller group with company information. [Becoming Partners](https://developer.samsung.com/smarttv/develop/distribute/seller-office/membership/becoming-partner.html) Samsung Developer Relations told forum users to launch in the US as a public seller first and become a partner later. Several developers reported that their requests for a Content Manager contact went unanswered. [Samsung forum](https://forum.developer.samsung.com/t/about-smart-tv/6425) Whether Samsung gives a solo, unofficial, free app a partner contract is **unclear**; no source describes the criteria.
 - **Fees:** none of the pages checked mentions a sign-up or listing fee. "Free" is one of the three billing options. [Entering Application Information](https://developer.samsung.com/tv-seller-office/guides/applications/entering-application-information.html)
-- **The program is open and active.** Jellyfin for Tizen reached the store in February 2026 after about two and a half years of work. The maintainer had to negotiate non-blocking defects with Seller Office, and only some model groups were approved. [jellyfin-tizen #222](https://github.com/jellyfin/jellyfin-tizen/issues/222)
+- **The program is open and active.** Jellyfin for Tizen reached the store in February 2026 after about two and a half years of work. The maintainer had to negotiate non-blocking defects with Seller Office ("had to bargain with the Seller Apps Office"), and only some model groups were approved. Users then installed it from the store in **Italy and Norway**, so a non-company project did get European distribution. The thread doesn't say whether that took a partner contract. [jellyfin-tizen #222](https://github.com/jellyfin/jellyfin-tizen/issues/222)
+- **Why US only:** Samsung's docs give no reason or start date. The limit applies to every country outside the US, not only the EU. A partner contract is with Samsung HQ or a local subsidiary and names its countries. Brightcove's partner guide says the Content Manager can sometimes waive the offline agreement. [Brightcove: Becoming a Samsung Partner](https://corptv.support.brightcove.com/publishing-apps/samsung/samsung-partner.html)
 
 ## 2. Account and legal requirements
 
 - **Seller information** per app: seller name, support email, homepage URL, representative name, phone, mailing address, and a registration number (D-U-N-S, VAT, EIN, or Korean business number). Individuals skip the registration number. [Entering Application Information](https://developer.samsung.com/tv-seller-office/guides/applications/entering-application-information.html)
 - **Privacy policy URL:** required only if the app collects personal information. It must be in English. [Launch Checklist](https://developer.samsung.com/tv-seller-office/checklists-for-distribution/launch-checklist.html), [Registration Q&A](https://developer.samsung.com/tv-seller-office/faq/application-registration.html) This app stores GitHub usernames on the TV and calls a third-party API. A short privacy page is cheap insurance.
-- **EU release:** needs a Declaration of Conformity for the European Accessibility Act. [Entering Application Information](https://developer.samsung.com/tv-seller-office/guides/applications/entering-application-information.html)
+- **EU release:** needs a Declaration of Conformity for the European Accessibility Act. [Entering Application Information](https://developer.samsung.com/tv-seller-office/guides/applications/entering-application-information.html) The EU Digital Services Act also makes "Company or Business" seller groups enter a registration number; "Individual" groups don't. [Managing Seller Groups](https://developer.samsung.com/tv-seller-office/guides/membership/managing-seller-group.html) Neither rule is what limits public sellers to the US.
 - **Age rating** and **category** (Information or Lifestyle fit). The content is user-generated, so the rating needs thought. [Registration Q&A](https://developer.samsung.com/tv-seller-office/faq/application-registration.html)
 - **Tax/bank details:** needed only for Samsung Checkout. Not needed for a free app.
 
@@ -159,7 +160,7 @@ If the password prompt hangs, run the package step under `expect` with a timeout
 **Blockers** (decide first):
 
 1. **Brand permission.** Ask Nuno Maduro in writing for use of the dev-null.sh name and logo. Without it: rename and redraw the icon.
-2. **Market.** A public seller ships to the US only. Norway or the EU needs a partner contract with Samsung, which may not be offered to an individual.
+2. **Market.** A public seller ships to the US only. Norway or the EU needs a partner contract with Samsung (or a negotiated exception, as Jellyfin got), which may not be offered to an individual.
 3. **Author certificate.** Pick the author cert that will sign every release, forever. Back it up with its password.
 
 **Work items** (in order):
@@ -198,6 +199,8 @@ If the password prompt hangs, run the package step under `expect` with a timeout
 - [Galaxy Store terms](https://seller.samsungapps.com/terms/termsAndConditions.as), [IP Infringement Checklist](https://developer.samsung.com/galaxy-store/ip-infringement.html), [Galaxy Store Developer API](https://developer.samsung.com/galaxy-store/galaxy-store-developer-api.html)
 - [Samsung forum: About Smart TV](https://forum.developer.samsung.com/t/about-smart-tv/6425)
 - [jellyfin-tizen #222](https://github.com/jellyfin/jellyfin-tizen/issues/222)
+- [Managing Seller Groups](https://developer.samsung.com/tv-seller-office/guides/membership/managing-seller-group.html)
+- [Brightcove: Becoming a Samsung Partner](https://corptv.support.brightcove.com/publishing-apps/samsung/samsung-partner.html)
 - [flutter-tizen: publish-app.md](https://github.com/flutter-tizen/flutter-tizen/blob/master/doc/publish-app.md)
 - [samsung-tv-cert](https://github.com/titlog/samsung-tv-cert)
 - [sourcetoad/tizen-build-action](https://github.com/sourcetoad/tizen-build-action), [egorshulga/tizen-sdk-docker](https://github.com/egorshulga/tizen-sdk-docker), [streamvault PR #44](https://github.com/christopherklint97/streamvault/pull/44)

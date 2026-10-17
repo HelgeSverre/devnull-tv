@@ -162,6 +162,11 @@ with real commits, following dev-null.sh's [design system](https://github.com/nu
   their activity graph is drawn in it, so the app reads each person's lane from
   `/@{u}/graph.svg?theme=dark` once per session and stores it on the TV. Anyone else (authors of
   parent commits) gets the site's automatic lane, a hash of the user id (`User::automaticLane`).
+- **Code.** Fenced blocks and `inline code` follow the site's rules (`CodeSpans.php`): mentions, links and
+  the wordmark never apply inside code. The site highlights code on its server with
+  [tempest/highlight](https://github.com/tempestphp/highlight), and the API returns only the raw
+  text, so `app/js/highlight.js` is a JavaScript port of tempest 2.28.1 for PHP, shell, JS, TS and
+  JSON with the site's token colors. It was checked token by token against tempest's own output.
 - **The /dev/null wordmark.** Like the site, a standalone `/dev/null` in a commit renders as the
   wordmark with the outlined orange slash; longer paths, words and `inline code` stay plain.
 - **Links** open in the TV's own browser through `tizen.application.launchAppControl`.
