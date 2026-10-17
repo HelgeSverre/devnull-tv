@@ -946,7 +946,8 @@
           h("i", { class: "radio" }),
           styleThumb(style[0]),
           h("div", { class: "who-line" }, h("div", { class: "name", text: style[1] }), h("div", { class: "m", text: style[2] })),
-          h("span", { class: "m act", text: on ? "in use" : (focused ? "OK use" : "") })));
+          // Always there (hidden unless focused or in use), so the description never reflows.
+          h("span", { class: "m act", text: on ? "in use" : "OK use" })));
       });
       root.appendChild(feed);
       root.appendChild(h("aside", { class: "aside" }, keysBlock([["▲ ▼", "move"], ["OK", "use this style"], ["▶ PLAY", "preview the focused style"], ["◀", "menu"]])));
