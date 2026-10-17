@@ -74,6 +74,7 @@
   // not on this TV, the automatic lane: the site's hash of the user id (User::automaticLane).
   var LANE_HEX = ["#ff8a4c", "#51cf66", "#da77f2", "#3bc9db", "#f06595", "#fcc419"];
   var lanes = load("lanes", {});
+  var lanesVersion = 0; // bumps when a learned lane changes, so cached screens redraw in the new color
 
   function laneOf(userId) {
     var lane = lanes[userId];
@@ -101,6 +102,7 @@
     return found.then(function (lane) {
       if (lane === null || lane === known) return false;
       lanes[user.id] = lane;
+      lanesVersion += 1;
       save("lanes", lanes);
       return true;
     }).catch(function () { return false; }); // offline, or the graph can't be read: keep the automatic lane
@@ -417,7 +419,7 @@
     var head = h("div", { class: "head" },
       avatar(c.author, 72),
       h("span", { class: "name", text: c.author.name || c.author.username }),
-      h("span", { class: "m", text: "@" + c.author.username + " · " + ago(c.created_at) }),
+      h("span", { class: "m when", text: "@" + c.author.username + " · " + ago(c.created_at) }),
       h("span", { class: "m hash", text: c.short_hash }));
     var content = h("div", { class: "content" }, head);
     if (c.parent_id && opts.replyLabel !== false) content.appendChild(h("div", { class: "m replying", text: "↳ reply" }));
@@ -499,11 +501,14 @@
       go ? h("div", { class: "go", text: go }) : null);
   }
 
-  // Keeps a focused row about a fifth of the way down the scroller.
-  function scrollTo(inner, row, scroller) {
+  // Keeps a focused row about a fifth of the way down the scroller. instant places it without the slide,
+  // for a list that was just built: sliding there from the top reads as a jerk.
+  function scrollTo(inner, row, scroller, instant) {
     if (!inner || !row) return;
     var offset = Math.max(0, row.offsetTop - Math.round(scroller.clientHeight * 0.18));
+    if (instant) inner.style.transition = "none";
     inner.style.transform = "translateY(" + -offset + "px)";
+    if (instant) { inner.offsetHeight; inner.style.transition = ""; }
   }
 
   // ── Log ────────────────────────────────────────────────────────────────────────────────────────
@@ -512,12 +517,31 @@
     name: "log", section: "log",
     commits: [], focus: 0, pending: null, newCount: 0, loaded: false, error: null, fetchedAt: null,
 
+    // The built log is kept and put back as it was (focus, scroll, loaded images) when nothing it shows
+    // has changed, so coming back from a commit doesn't rebuild and re-scroll the whole list.
     render: function (root) {
       var self = this;
+      var key = [this.commits.length && this.commits[0].id, this.commits.length, people.length, this.loaded, this.error,
+        this.newCount, lanesVersion].join("|");
+      if (this.built && this.built.key === key && this.built.commits === this.commits) {
+        root.appendChild(this.built.feed);
+        root.appendChild(this.aside);
+        this.renderHead();
+        this.refreshTimes();
+        // CH on the commit page moves the log's focus while it is away.
+        if (this.rows && !(this.rows[this.focus] && this.rows[this.focus].className === "row focus")) {
+          this.rows.forEach(function (row, i) { row.className = i === self.focus ? "row focus" : "row"; });
+          scrollTo(this.inner, this.rows[this.focus], this.scroller, true);
+          hydrateRows(this.rows, this.focus);
+          this.renderAside();
+        }
+        return;
+      }
       this.head = h("div", { class: "feed-head" });
       this.renderHead();
       var feed = h("main", { class: "feed" }, this.head);
       this.aside = h("aside", { class: "aside" });
+      this.built = { key: key, commits: this.commits, feed: feed };
       root.appendChild(feed);
       root.appendChild(this.aside);
 
@@ -563,7 +587,18 @@
       feed.appendChild(this.scroller);
       this.renderAside();
       hydrateRows(this.rows, this.focus);
-      setTimeout(function () { scrollTo(self.inner, self.rows[self.focus], self.scroller); }, 0);
+      scrollTo(this.inner, this.rows[this.focus], this.scroller, true);
+    },
+
+    // Relative times ("3m") on the kept rows.
+    refreshTimes: function () {
+      var self = this;
+      if (!this.rows) return;
+      this.rows.forEach(function (row, i) {
+        var c = self.commits[i];
+        var when = row.querySelector(".when");
+        if (c && when) when.textContent = "@" + c.author.username + " · " + ago(c.created_at);
+      });
     },
 
     // The title, the new-commits pill and the fetch time; a poll that finds nothing new redraws only this.
@@ -635,7 +670,7 @@
         .catch(function (e) { self.error = e.message || String(e); })
         .then(function () {
           if (full || self.error !== errorBefore || self.newCount !== newBefore) redraw(self);
-          else if (screen === self) self.renderHead();
+          else if (screen === self) { self.renderHead(); self.refreshTimes(); }
         });
     },
 
@@ -831,9 +866,7 @@
             });
           }
           hydrateRows(this.rows, Math.max(0, this.focus));
-          setTimeout(function () {
-            if (self.focus >= 0) scrollTo(self.inner, self.rows[self.focus], self.scroller);
-          }, 0);
+          if (this.focus >= 0) scrollTo(this.inner, this.rows[this.focus], this.scroller, true);
         }
         root.appendChild(h("aside", { class: "aside" }, keysBlock([["◀ ▶", "commits / replies"], ["▲ ▼", "move"], ["OK", "open commit"], ["BACK", "back"]])));
 
