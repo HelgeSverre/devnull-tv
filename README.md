@@ -174,6 +174,8 @@ ffmpeg -loop 1 -i app/splash/splash.png -t 2 -r 30 -vf "fade=t=in:st=0:d=1.2,for
 
 `design/screens.html` is the design document the app was built from: every screen at 1920×1080
 with real commits, following dev-null.sh's [design system](https://github.com/nunomaduro/dev-null.sh/blob/main/DESIGN.md).
+`design/ambient-variants.html` is the study the ambient styles came from: five transitions running
+side by side on sample commits from fictional people.
 
 ## How it works
 

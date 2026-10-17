@@ -1,0 +1,347 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Ambient variants</title>
+<style>
+/* Five live variants of the TV ambient screen, each a 1920×1080 stage scaled into the page. */
+@font-face { font-family: "Geist"; src: url("../app/fonts/Geist-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Geist"; src: url("../app/fonts/Geist-Medium.woff2") format("woff2"); font-weight: 500; }
+@font-face { font-family: "Geist"; src: url("../app/fonts/Geist-SemiBold.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Geist Mono"; src: url("../app/fonts/GeistMono-Regular.woff2") format("woff2"); font-weight: 400; }
+:root { --shell: #111112; --ink: #ececec; --muted: #a1a1a6; --rail: #36363a; --hairline: #2a2a2d; --primary: #7aa2f7;
+        --sans: "Geist", system-ui, sans-serif; --mono: "Geist Mono", ui-monospace, Menlo, monospace; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #0b0b0c; color: var(--ink); font: 16px/1.5 var(--sans); padding: 32px max(16px, 3vw) 80px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 48px; }
+header h1 { margin: 0 0 6px; font-size: 30px; font-weight: 600; letter-spacing: -0.02em; }
+header p { margin: 0; color: var(--muted); max-width: 72ch; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; font: 13px var(--mono); color: var(--muted); }
+button { font: 500 14px var(--sans); color: var(--ink); background: #1f1f22; border: 1px solid var(--rail); border-radius: 6px;
+         padding: 6px 12px; cursor: pointer; }
+button:hover { background: #2a2a2d; }
+button.on { background: #18233a; color: var(--primary); border-color: #2c4170; }
+figure { margin: 0; display: grid; gap: 12px; }
+figcaption { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: baseline; justify-content: space-between; }
+figcaption h2 { margin: 0; font-size: 20px; font-weight: 600; }
+figcaption h2 span { font: 14px var(--mono); color: var(--muted); margin-right: 8px; }
+figcaption p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; font-size: 15px; }
+figcaption .ctl { display: flex; gap: 8px; }
+.frame { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 10px; background: var(--shell);
+         box-shadow: 0 0 0 1px var(--hairline); }
+.stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
+         background: var(--shell); color: var(--ink); font-family: var(--sans); }
+
+/* shared commit pieces */
+.head { display: flex; align-items: center; }
+.head img { width: 96px; height: 96px; border-radius: 50%; margin-right: 28px; object-fit: cover; }
+.name { font-size: 42px; font-weight: 600; line-height: 1.2; }
+.meta { font: 28px var(--mono); color: var(--muted); white-space: nowrap; }
+.body { font-weight: 500; line-height: 1.22; letter-spacing: -0.015em; white-space: pre-wrap; word-wrap: break-word; }
+.body .at, .body .url { color: var(--primary); }
+.body .url { font-size: 0.6em; }
+.stats { font: 28px var(--mono); color: var(--muted); }
+.media img { max-width: 700px; max-height: 640px; border-radius: 24px; display: block; object-fit: contain; }
+.clock { position: absolute; right: 96px; top: 54px; font: 32px var(--mono); color: var(--muted); }
+.knot { position: absolute; width: 36px; height: 36px; border-radius: 50%; background: var(--shell); box-shadow: 0 0 0 6px currentColor; }
+.line { position: absolute; width: 6px; }
+
+/* V1 glide */
+.v1 .rail-up, .v1 .rail-down { left: 197px; background: var(--rail); overflow: hidden; transition: height 700ms ease-in-out, top 700ms ease-in-out; }
+.v1 .seg { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.v1 .knot { left: 182px; transition: top 700ms ease-in-out, color 700ms ease; z-index: 1; }
+.v1 .content { position: absolute; left: 290px; right: 120px; top: 110px; bottom: 150px; display: flex; align-items: center;
+               opacity: 0; transition: opacity 600ms ease; }
+.v1 .content.in { opacity: 1; }
+
+/* V2 scrolling log */
+.v2 .column { position: absolute; left: 0; right: 0; top: 0; transition: transform 1100ms cubic-bezier(.65, 0, .35, 1); }
+.v2 .slide { position: relative; height: 1080px; }
+.v2 .slide .line { left: 197px; top: 0; bottom: 0; }
+.v2 .slide .knot { left: 182px; }
+.v2 .slide .content { position: absolute; left: 290px; right: 120px; top: 110px; bottom: 150px; display: flex; align-items: center; }
+.v2 .fill { position: absolute; left: 197px; width: 6px; transform-origin: top; }
+
+/* V3 still */
+.v3 .line-up { left: 197px; top: 0; height: 182px; background: var(--rail); }
+.v3 .line-down { left: 197px; top: 218px; bottom: 0; background: var(--rail); }
+.v3 .fill { position: absolute; left: 197px; top: 218px; bottom: 0; width: 6px; transform-origin: top; }
+.v3 .knot { left: 182px; top: 182px; transition: color 900ms ease; z-index: 1; }
+.v3 .content { position: absolute; left: 290px; right: 120px; top: 152px; bottom: 150px; display: flex;
+               opacity: 0; transition: opacity 900ms ease; }
+.v3 .content.in { opacity: 1; }
+
+/* V4 bottom timeline */
+.v4 .content { position: absolute; left: 160px; right: 160px; top: 100px; bottom: 230px; display: flex; align-items: center;
+               opacity: 0; transition: opacity 700ms ease; }
+.v4 .content.in { opacity: 1; }
+.v4 .tl { position: absolute; left: 160px; right: 160px; top: 930px; height: 6px; }
+.v4 .tl .seg { position: absolute; top: 0; height: 6px; background: var(--rail); }
+.v4 .tl .seg i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: left; transform: scaleX(0); }
+.v4 .tl .dot { position: absolute; top: -9px; width: 24px; height: 24px; margin-left: -12px; border-radius: 50%; background: var(--shell);
+               box-shadow: 0 0 0 5px var(--rail); transition: box-shadow 500ms ease, transform 500ms ease; }
+.v4 .tl .dot.done { box-shadow: 0 0 0 5px currentColor; }
+.v4 .tl .dot.now { transform: scale(1.6); box-shadow: 0 0 0 5px currentColor; }
+.v4 .tl .who { position: absolute; top: 40px; transform: translateX(-50%); font: 22px var(--mono); color: var(--muted); white-space: nowrap; }
+
+/* V5 terminal */
+.v5 { font-family: var(--mono); }
+.v5 .term { position: absolute; left: 200px; right: 200px; top: 150px; bottom: 150px; opacity: 1; transition: opacity 300ms ease; }
+.v5 .term.out { opacity: 0; }
+.v5 .cmd { font-size: 34px; color: var(--muted); }
+.v5 .cmd b { color: var(--ink); font-weight: 400; }
+.v5 .author { margin-top: 26px; font-size: 30px; color: var(--muted); display: flex; align-items: center; }
+.v5 .author img { width: 64px; height: 64px; border-radius: 50%; margin-right: 22px; }
+.v5 .author .dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: currentColor; margin-right: 14px; }
+.v5 .typed { margin-top: 48px; font-family: var(--sans); }
+.v5 .caret { display: inline-block; width: 0.5em; height: 1em; background: var(--primary); vertical-align: -0.12em; margin-left: 4px;
+             animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.v5 .gauge { position: absolute; left: 200px; bottom: 80px; font-size: 26px; color: var(--muted); }
+
+@keyframes drain { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+@keyframes fillY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes fillX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Ambient: five ways to move between commits</h1>
+    <p>Each frame is the TV's 1920×1080 ambient screen, running live with six sample commits from fictional people. Same content, same type; only the transition and the progress cue differ. Pick one, or name the parts you like.</p>
+    <div class="bar">
+      <span>time per commit</span>
+      <button id="speed-6" class="on">6 s preview</button>
+      <button id="speed-12">12 s, as on the TV</button>
+    </div>
+  </header>
+
+  <figure>
+    <figcaption><div><h2><span>01</span>Glide</h2><p>The first version on the TV, since replaced. The node glides to each author while the commit cross-fades; the line above drains into the node in the last commit's color, then the line below fills.</p></div>
+      <div class="ctl"><button data-v="1" data-act="prev">◀</button><button data-v="1" data-act="pause">pause</button><button data-v="1" data-act="next">▶</button></div></figcaption>
+    <div class="frame"><div class="stage v1" id="v1"></div></div>
+  </figure>
+
+  <figure>
+    <figcaption><div><h2><span>02</span>Scrolling log</h2><p>The screen is a <code>git log</code> that scrolls: each commit carries its own node, and the whole rail moves up as the next commit arrives from below. The line below the current node fills toward the next one.</p></div>
+      <div class="ctl"><button data-v="2" data-act="prev">◀</button><button data-v="2" data-act="pause">pause</button><button data-v="2" data-act="next">▶</button></div></figcaption>
+    <div class="frame"><div class="stage v2" id="v2"></div></div>
+  </figure>
+
+  <figure>
+    <figcaption><div><h2><span>03</span>Still</h2><p>Nothing moves. The node sits at a fixed height with the author beside it; commits cross-fade slowly in place, the node changes color, and only the line below it fills. The calmest option.</p></div>
+      <div class="ctl"><button data-v="3" data-act="prev">◀</button><button data-v="3" data-act="pause">pause</button><button data-v="3" data-act="next">▶</button></div></figcaption>
+    <div class="frame"><div class="stage v3" id="v3"></div></div>
+  </figure>
+
+  <figure>
+    <figcaption><div><h2><span>04</span>Timeline</h2><p>The rail lies along the bottom with a node per commit, like a progress chain. Visited nodes keep their author's color, the current one is larger, and the line fills toward the next. Shows where you are in the set.</p></div>
+      <div class="ctl"><button data-v="4" data-act="prev">◀</button><button data-v="4" data-act="pause">pause</button><button data-v="4" data-act="next">▶</button></div></figcaption>
+    <div class="frame"><div class="stage v4" id="v4"></div></div>
+  </figure>
+
+  <figure>
+    <figcaption><div><h2><span>05</span>Terminal</h2><p>Each commit is a <code>git show</code>: the command types out, then the commit types itself in large type with a caret, and holds. A mono gauge counts down. Most playful, least ambient.</p></div>
+      <div class="ctl"><button data-v="5" data-act="prev">◀</button><button data-v="5" data-act="pause">pause</button><button data-v="5" data-act="next">▶</button></div></figcaption>
+    <div class="frame"><div class="stage v5" id="v5"></div></div>
+  </figure>
+</div>
+
+<script>
+var AV = { robin: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2096%2096%22%3E%3Crect%20width%3D%2296%22%20height%3D%2296%22%20fill%3D%22%23fcc419%22/%3E%3Ctext%20x%3D%2248%22%20y%3D%2260%22%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2238%22%20font-weight%3D%22700%22%20text-anchor%3D%22middle%22%20fill%3D%22%23111112%22%3ERP%3C/text%3E%3C/svg%3E", sam: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2096%2096%22%3E%3Crect%20width%3D%2296%22%20height%3D%2296%22%20fill%3D%22%23f06595%22/%3E%3Ctext%20x%3D%2248%22%20y%3D%2260%22%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2238%22%20font-weight%3D%22700%22%20text-anchor%3D%22middle%22%20fill%3D%22%23111112%22%3ESR%3C/text%3E%3C/svg%3E", jo: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2096%2096%22%3E%3Crect%20width%3D%2296%22%20height%3D%2296%22%20fill%3D%22%233bc9db%22/%3E%3Ctext%20x%3D%2248%22%20y%3D%2260%22%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2238%22%20font-weight%3D%22700%22%20text-anchor%3D%22middle%22%20fill%3D%22%23111112%22%3EJN%3C/text%3E%3C/svg%3E" };
+var IMG_TV = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%201280%20960%22%3E%3Crect%20width%3D%221280%22%20height%3D%22960%22%20fill%3D%22%232b2a33%22/%3E%3Crect%20y%3D%22760%22%20width%3D%221280%22%20height%3D%22200%22%20fill%3D%22%238a6f55%22/%3E%3Crect%20x%3D%22140%22%20y%3D%2290%22%20width%3D%221000%22%20height%3D%22580%22%20rx%3D%2214%22%20fill%3D%22%230b0b0c%22/%3E%3Crect%20x%3D%22170%22%20y%3D%22120%22%20width%3D%22940%22%20height%3D%22520%22%20fill%3D%22%2318181a%22/%3E%3Crect%20x%3D%22248%22%20y%3D%22120%22%20width%3D%225%22%20height%3D%22520%22%20fill%3D%22%2336363a%22/%3E%3Ccircle%20cx%3D%22250%22%20cy%3D%22200%22%20r%3D%2216%22%20fill%3D%22%2318181a%22%20stroke%3D%22%23fcc419%22%20stroke-width%3D%226%22/%3E%3Crect%20x%3D%22300%22%20y%3D%22186%22%20width%3D%22420%22%20height%3D%2216%22%20rx%3D%228%22%20fill%3D%22%235a5a60%22/%3E%3Crect%20x%3D%22300%22%20y%3D%22216%22%20width%3D%22620%22%20height%3D%2214%22%20rx%3D%227%22%20fill%3D%22%233c3c42%22/%3E%3Ccircle%20cx%3D%22250%22%20cy%3D%22330%22%20r%3D%2216%22%20fill%3D%22%2318181a%22%20stroke%3D%22%23f06595%22%20stroke-width%3D%226%22/%3E%3Crect%20x%3D%22300%22%20y%3D%22316%22%20width%3D%22360%22%20height%3D%2216%22%20rx%3D%228%22%20fill%3D%22%235a5a60%22/%3E%3Crect%20x%3D%22300%22%20y%3D%22346%22%20width%3D%22700%22%20height%3D%2214%22%20rx%3D%227%22%20fill%3D%22%233c3c42%22/%3E%3Crect%20x%3D%22300%22%20y%3D%22372%22%20width%3D%22520%22%20height%3D%2214%22%20rx%3D%227%22%20fill%3D%22%233c3c42%22/%3E%3Ccircle%20cx%3D%22250%22%20cy%3D%22480%22%20r%3D%2216%22%20fill%3D%22%2318181a%22%20stroke%3D%22%233bc9db%22%20stroke-width%3D%226%22/%3E%3Crect%20x%3D%22300%22%20y%3D%22466%22%20width%3D%22400%22%20height%3D%2216%22%20rx%3D%228%22%20fill%3D%22%235a5a60%22/%3E%3Crect%20x%3D%22300%22%20y%3D%22496%22%20width%3D%22580%22%20height%3D%2214%22%20rx%3D%227%22%20fill%3D%22%233c3c42%22/%3E%3Crect%20x%3D%22560%22%20y%3D%22670%22%20width%3D%22160%22%20height%3D%2290%22%20fill%3D%22%231d1c22%22/%3E%3Crect%20x%3D%22460%22%20y%3D%22752%22%20width%3D%22360%22%20height%3D%2216%22%20rx%3D%226%22%20fill%3D%22%231d1c22%22/%3E%3C/svg%3E";
+// Fictional people and posts, standing in for real ones.
+var LANE = { robin: "#fcc419", sam: "#f06595", jo: "#3bc9db" };
+var NAME = { robin: "Robin Park", sam: "Sam Rivera", jo: "Jo Nakamura" };
+var COMMITS = [
+  { user: "robin", hash: "d8c1a20", ago: "3h", stars: 2, replies: 0, body: "Pairing with @jo on the release script today, wish us luck" },
+  { user: "sam", hash: "43e6050", ago: "9h", stars: 63, replies: 12, body: "shipped it, going to bed, good night everyone" },
+  { user: "robin", hash: "3933313", ago: "4h", stars: 4, replies: 2, body: "It works: the log is on the living room TV now", image: true },
+  { user: "jo", hash: "60734c7", ago: "7h", stars: 3, replies: 1, body: "It's wild how much a small community can build in one weekend. So many good ideas, so many people helping each other, and so much fun along the way!" },
+  { user: "robin", hash: "3211b48", ago: "3h", stars: 1, replies: 1, body: "open sourced the weekend project 📺 a tiny remote for the TV: apps, d-pad, volume, and a trackpad mode that drives the TV browser's cursor\n\nalso a dependency-free library for the TV's APIs if you want to build your own\n\nhttps://example.com/tv-remote" },
+  { user: "sam", hash: "cf7b887", ago: "13h", stars: 30, replies: 11, body: "need to scale the server" }
+];
+var PER = 6000;           // time per commit, ms
+var SIZES = [104, 92, 82, 74, 66, 58, 52, 46, 40];
+
+function h(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+function body(c) {
+  var n = h("div", "body");
+  c.body.split(/(@[A-Za-z0-9-]+|https?:\/\/\S+)/).forEach(function (p, i) {
+    if (!p) return;
+    if (i % 2) n.appendChild(h("span", p[0] === "@" ? "at" : "url", p[0] === "@" ? p : p.replace(/^https?:\/\//, "").slice(0, 32) + "…"));
+    else n.appendChild(document.createTextNode(p));
+  });
+  return n;
+}
+function head(c) {
+  var row = h("div", "head"), img = h("img"); img.src = AV[c.user];
+  var who = h("div"); who.appendChild(h("div", "name", NAME[c.user])); who.appendChild(h("div", "meta", "@" + c.user + " · " + c.ago + " · " + c.hash));
+  row.appendChild(img); row.appendChild(who); return row;
+}
+function stats(c) { return h("div", "stats", "☆ " + c.stars + "    ↩ " + c.replies + (c.replies === 1 ? " reply" : " replies")); }
+// The commit block used by variants 1–4: text column (fitted) plus an optional image column.
+function block(c, room) {
+  var wrap = h("div"); wrap.style.cssText = "display:flex;align-items:center;width:100%";
+  var text = h("div"); text.style.cssText = "flex:1;min-width:0";
+  var b = body(c); b.style.marginTop = "40px";
+  var s = stats(c); s.style.marginTop = "34px";
+  text.appendChild(head(c)); text.appendChild(b); text.appendChild(s);
+  wrap.appendChild(text);
+  if (c.image) { var m = h("div", "media"); m.style.marginLeft = "80px"; var i = h("img"); i.src = IMG_TV; m.appendChild(i); wrap.appendChild(m); }
+  wrap.fit = function () {
+    for (var k = 0; k < SIZES.length; k++) { b.style.fontSize = SIZES[k] + "px"; if (b.scrollHeight <= room - 260) break; }
+  };
+  wrap.head = text.firstChild;
+  return wrap;
+}
+function clock(stage) { var c = h("div", "clock", "12:30"); stage.appendChild(c); }
+
+// ── variant engines ────────────────────────────────────────────────────────────────────
+var variants = {};
+
+variants[1] = function (stage) {
+  clock(stage);
+  var upT = h("i", "line rail-up"), up = h("i", "seg"), downT = h("i", "line rail-down"), down = h("i", "seg"), knot = h("i", "knot");
+  upT.appendChild(up); downT.appendChild(down);
+  upT.style.top = "0"; stage.appendChild(upT); stage.appendChild(downT); stage.appendChild(knot);
+  var content = null, last = null;
+  return function show(i) {
+    var c = COMMITS[i];
+    if (content) { var old = content; old.classList.remove("in"); setTimeout(function () { old.remove(); }, 600); }
+    content = h("div", "content"); var b = block(c, 820); content.appendChild(b); stage.appendChild(content); b.fit();
+    var y = Math.round(110 + b.head.offsetTop + 48);
+    setTimeout(function () { content.classList.add("in"); }, 650);
+    knot.style.color = LANE[c.user]; knot.style.top = (y - 18) + "px";
+    upT.style.height = (y - 18) + "px"; downT.style.top = (y + 18) + "px"; downT.style.height = (1080 - y - 18) + "px";
+    up.innerHTML = ""; down.innerHTML = "";
+    var d = h("i"); d.style.cssText = "position:absolute;inset:0;transform-origin:bottom;animation:drain 1200ms ease-in both;background:" + (last || LANE[c.user]); up.appendChild(d);
+    var f = h("i"); f.style.cssText = "position:absolute;inset:0;transform-origin:top;animation:fillY " + (PER - 1900) + "ms linear 1200ms both;background:" + LANE[c.user]; down.appendChild(f);
+    last = LANE[c.user];
+  };
+};
+
+variants[2] = function (stage) {
+  var column = h("div", "column"); stage.appendChild(column); clock(stage);
+  var slides = COMMITS.map(function (c, i) {
+    var s = h("div", "slide"), line = h("i", "line"), knot = h("i", "knot"), content = h("div", "content");
+    var prev = COMMITS[(i + COMMITS.length - 1) % COMMITS.length];
+    var b = block(c, 820); content.appendChild(b); s.appendChild(line); s.appendChild(content); s.appendChild(knot);
+    column.appendChild(s);
+    b.fit();
+    var y = Math.round(110 + b.head.offsetTop + 48);
+    knot.style.top = (y - 18) + "px"; knot.style.color = LANE[c.user];
+    line.style.background = "linear-gradient(" + LANE[prev.user] + " 0 " + (y - 18) + "px, var(--rail) " + (y - 18) + "px)";
+    var fill = h("i", "fill"); fill.style.top = (y + 18) + "px"; fill.style.height = (1080 - y - 18) + "px"; fill.style.background = LANE[c.user];
+    fill.style.transform = "scaleY(0)"; s.appendChild(fill);
+    return { fill: fill };
+  });
+  return function show(i) {
+    column.style.transform = "translateY(" + (-i * 1080) + "px)";
+    slides.forEach(function (s, k) { s.fill.style.animation = "none"; s.fill.style.transform = k < i ? "scaleY(1)" : "scaleY(0)"; });
+    var f = slides[i].fill; void f.offsetWidth;
+    f.style.animation = "fillY " + (PER - 1300) + "ms linear 1100ms both";
+  };
+};
+
+variants[3] = function (stage) {
+  clock(stage);
+  var up = h("i", "line line-up"), down = h("i", "line line-down"), fill = h("i", "fill"), knot = h("i", "knot");
+  stage.appendChild(up); stage.appendChild(down); stage.appendChild(fill); stage.appendChild(knot);
+  var content = null;
+  return function show(i) {
+    var c = COMMITS[i];
+    if (content) { var old = content; old.classList.remove("in"); setTimeout(function () { old.remove(); }, 900); }
+    content = h("div", "content"); var b = block(c, 778); b.style.alignItems = "flex-start"; content.appendChild(b); stage.appendChild(content); b.fit();
+    setTimeout(function () { content.classList.add("in"); }, 450);
+    knot.style.color = LANE[c.user];
+    fill.style.animation = "none"; fill.style.background = LANE[c.user]; void fill.offsetWidth;
+    fill.style.animation = "fillY " + (PER - 900) + "ms linear 450ms both";
+  };
+};
+
+variants[4] = function (stage) {
+  clock(stage);
+  var tl = h("div", "tl"); stage.appendChild(tl);
+  var width = 1600, n = COMMITS.length, gap = width / (n - 1);
+  var segs = [], dots = [];
+  for (var k = 0; k < n - 1; k++) { var s = h("div", "seg"); s.style.left = (k * gap) + "px"; s.style.width = gap + "px"; var fi = h("i"); s.appendChild(fi); tl.appendChild(s); segs.push(fi); }
+  COMMITS.forEach(function (c, k) {
+    var d = h("div", "dot"); d.style.left = (k * gap) + "px"; d.style.color = LANE[c.user]; tl.appendChild(d); dots.push(d);
+    var w = h("div", "who", "@" + c.user); w.style.left = (k * gap) + "px"; tl.appendChild(w);
+  });
+  var content = null;
+  return function show(i) {
+    var c = COMMITS[i];
+    if (content) { var old = content; old.classList.remove("in"); setTimeout(function () { old.remove(); }, 700); }
+    content = h("div", "content"); var b = block(c, 750); content.appendChild(b); stage.appendChild(content); b.fit();
+    setTimeout(function () { content.classList.add("in"); }, 500);
+    dots.forEach(function (d, k) { d.className = "dot" + (k < i ? " done" : k === i ? " now" : ""); });
+    segs.forEach(function (f, k) {
+      f.style.animation = "none"; f.style.background = LANE[COMMITS[k].user];
+      f.style.transform = k < i ? "scaleX(1)" : "scaleX(0)";
+    });
+    if (segs[i]) { void segs[i].offsetWidth; segs[i].style.animation = "fillX " + (PER - 500) + "ms linear 500ms both"; }
+  };
+};
+
+variants[5] = function (stage) {
+  var term = h("div", "term"), gauge = h("div", "gauge"); stage.appendChild(term); stage.appendChild(gauge);
+  var timers = [];
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  return function show(i) {
+    var c = COMMITS[i];
+    timers.forEach(clearTimeout); timers = [];
+    term.classList.add("out");
+    later(function () {
+      term.innerHTML = ""; term.classList.remove("out");
+      var cmd = h("div", "cmd"); term.appendChild(cmd);
+      var author = h("div", "author"); var img = h("img"); img.src = AV[c.user];
+      var dot = h("span", "dot"); dot.style.color = LANE[c.user];
+      author.appendChild(img); author.appendChild(dot); author.appendChild(document.createTextNode(NAME[c.user] + "  @" + c.user + "  " + c.ago + " ago"));
+      var typed = h("div", "body typed"); var caret = h("span", "caret");
+      var full = "$ git show " + c.hash;
+      var k = 0;
+      (function typeCmd() { cmd.textContent = full.slice(0, ++k); if (k < full.length) later(typeCmd, 45); else later(start, 250); })();
+      function start() {
+        term.appendChild(author); term.appendChild(typed);
+        typed.textContent = c.body; typed.appendChild(caret);
+        for (var s = 0; s < SIZES.length; s++) { typed.style.fontSize = SIZES[s] + "px"; if (typed.scrollHeight <= 600) break; }
+        var text = c.body, j = 0, step = Math.max(12, Math.min(40, 2600 / text.length));
+        (function typeBody() { typed.textContent = text.slice(0, ++j); typed.appendChild(caret); if (j < text.length) later(typeBody, step); })();
+      }
+      var t0 = Date.now();
+      (function tick() {
+        var left = Math.max(0, PER - (Date.now() - t0)); var total = 24, filled = Math.round(total * (1 - left / PER));
+        gauge.textContent = "[" + "█".repeat(filled) + "░".repeat(total - filled) + "] " + (i + 1) + "/" + COMMITS.length + "  ☆ " + c.stars + "  ↩ " + c.replies;
+        if (left > 0) later(tick, 200);
+      })();
+    }, 300);
+  };
+};
+
+// ── runner ─────────────────────────────────────────────────────────────────────────────
+var players = {};
+Object.keys(variants).forEach(function (v) {
+  var stage = document.getElementById("v" + v);
+  var p = { i: 0, paused: false, show: variants[v](stage) };
+  p.go = function (d) { p.i = (p.i + d + COMMITS.length) % COMMITS.length; p.show(p.i); p.arm(); };
+  p.arm = function () { clearTimeout(p.timer); if (!p.paused) p.timer = setTimeout(function () { p.go(1); }, PER); };
+  players[v] = p;
+});
+document.querySelectorAll("button[data-v]").forEach(function (b) {
+  b.addEventListener("click", function () {
+    var p = players[b.dataset.v];
+    if (b.dataset.act === "next") p.go(1);
+    else if (b.dataset.act === "prev") p.go(-1);
+    else { p.paused = !p.paused; b.textContent = p.paused ? "play" : "pause"; b.classList.toggle("on", p.paused); p.arm(); }
+  });
+});
+function speed(ms, btn) {
+  PER = ms; document.querySelectorAll("#speed-6, #speed-12").forEach(function (x) { x.classList.toggle("on", x === btn); });
+  Object.keys(players).forEach(function (v) { players[v].go(0); });
+}
+document.getElementById("speed-6").addEventListener("click", function (e) { speed(6000, e.target); });
+document.getElementById("speed-12").addEventListener("click", function (e) { speed(12000, e.target); });
+
+function fit() { document.querySelectorAll(".frame").forEach(function (f) { f.firstElementChild.style.transform = "scale(" + f.clientWidth / 1920 + ")"; }); }
+window.addEventListener("resize", fit); fit();
+document.fonts.ready.then(function () { Object.keys(players).forEach(function (v) { players[v].show(0); players[v].arm(); }); });
+</script>
