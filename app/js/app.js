@@ -166,6 +166,10 @@
   var WORDMARK_BEFORE = /[\p{L}\p{M}\p{N}_.\/-]/u;
   var WORDMARK_AFTER = /[\p{L}\p{M}\p{N}_\/-]/u;
 
+  function wordmark() {
+    return h("span", { class: "wordmark", title: WORDMARK }, "/dev", h("span", { class: "slash", text: "/" }), "null");
+  }
+
   function appendWithWordmarks(node, text) {
     text.split(/(`[^`\n]*`)/).forEach(function (chunk, i) {
       var from = 0;
@@ -174,7 +178,7 @@
         var end = at + WORDMARK.length;
         if (!WORDMARK_BEFORE.test(chunk.charAt(at - 1)) && !WORDMARK_AFTER.test(chunk.charAt(end))) {
           if (at > from) node.appendChild(document.createTextNode(chunk.slice(from, at)));
-          node.appendChild(h("span", { class: "wordmark", title: WORDMARK }, "/dev", h("span", { class: "slash", text: "/" }), "null"));
+          node.appendChild(wordmark());
           from = end;
         }
         at = chunk.indexOf(WORDMARK, end);
@@ -887,7 +891,7 @@
         kv.appendChild(h("span", { style: pair[0] === "engine" ? "font-size:22px;color:var(--muted)" : null, text: pair[1] }));
       });
       feed.appendChild(h("div", { class: "about" },
-        h("p", { text: "dev-null.sh is the social network for developers. Posts are commits on one log, drawn like git log --graph, and every developer has their own lane color." }),
+        h("p", null, wordmark(), " is the social network for developers. Posts are commits on one log, drawn like git log --graph, and every developer has their own lane color."),
         kv));
       root.appendChild(feed);
       root.appendChild(h("aside", { class: "aside" }, keysBlock([["◀", "menu"], ["BACK", "back"]])));
