@@ -862,15 +862,26 @@
     ambient = { commits: commits, index: 0 };
     ambientEl.className = "";
     paintAmbient();
-    ambient.timer = setInterval(function () {
-      var block = ambientEl.querySelector(".block");
-      if (block) block.className = "block fade";
-      setTimeout(function () {
-        if (!ambient) return;
-        ambient.index = (ambient.index + 1) % ambient.commits.length;
-        paintAmbient();
-      }, 650);
-    }, AMBIENT_MS);
+    startAmbientTimer();
+  }
+
+  function startAmbientTimer() {
+    clearInterval(ambient.timer);
+    ambient.timer = setInterval(function () { stepAmbient(1, true); }, AMBIENT_MS);
+  }
+
+  // delta 1 = older, -1 = newer. Automatic steps fade; manual ones (CH ▲▼) switch at once and restart the timer.
+  function stepAmbient(delta, fade) {
+    var count = ambient.commits.length;
+    var go = function () {
+      if (!ambient) return;
+      ambient.index = (ambient.index + delta + count) % count;
+      paintAmbient();
+    };
+    if (!fade) { go(); startAmbientTimer(); return; }
+    var block = ambientEl.querySelector(".block");
+    if (block) block.className = "block fade";
+    setTimeout(go, 650);
   }
 
   function paintAmbient() {
@@ -885,7 +896,7 @@
           h("div", { class: "m", style: "font-size:30px", text: "@" + c.author.username + " · " + ago(c.created_at) + " · " + c.short_hash }))),
       h("div", { class: "text", text: c.body }),
       h("div", { class: "m", style: "margin-top:40px;font-size:30px", text: "★ " + c.stars_count + "   ↩ " + c.replies_count + (c.replies_count === 1 ? " reply" : " replies") })));
-    ambientEl.appendChild(h("div", { class: "m foot", text: (ambient.index + 1) + " / " + ambient.commits.length + " · any key returns to the log" }));
+    ambientEl.appendChild(h("div", { class: "m foot", text: (ambient.index + 1) + " / " + ambient.commits.length + " · CH ▲▼ browse · any other key returns to the log" }));
   }
 
   function stopAmbient() {
@@ -910,7 +921,11 @@
     if (document.activeElement && document.activeElement.tagName === "INPUT") return; // the field handles its own keys
     var code = e.keyCode;
     var handled = true;
-    if (ambient) stopAmbient();
+    if (ambient) {
+      if (code === KEY.CH_UP || code === KEY.PAGE_UP) stepAmbient(-1, false);
+      else if (code === KEY.CH_DOWN || code === KEY.PAGE_DOWN) stepAmbient(1, false);
+      else stopAmbient();
+    }
     else if (viewer) viewerKey(code);
     else if (nav.open) navKey(code);
     else if (code === KEY.BACK || code === KEY.ESC) back();

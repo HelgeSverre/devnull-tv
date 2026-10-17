@@ -28,7 +28,7 @@ public API.
 | **Profile** | Avatar with lane ring, mirrored GitHub details, counts, the public activity graph, and Commits / Replies tabs. |
 | **Image viewer** | Full-screen images, stepping through a commit's images. |
 | **People** | The TV's own follow list: add a GitHub username (checked against the API first) or remove one. Stored on the TV. |
-| **Ambient** | After two idle minutes, or on PLAY, the latest commits one at a time, large enough to read from the sofa. |
+| **Ambient** | After two idle minutes, or on PLAY, the latest commits one at a time, large enough to read from the sofa. CH ▲▼ browses them; any other key returns. |
 | **About** | Data source, refresh rate and the TV's web engine version. |
 
 ### Remote keys
@@ -38,7 +38,7 @@ public API.
 | ▲ ▼ | Move between commits (on the commit page: scroll) |
 | ◀ ▶ | ◀ opens the menu; on a commit, move between author, link and images; on a profile's tabs, switch tabs |
 | OK | Open the focused commit, author, link (in the TV's browser) or image |
-| CH ▲ ▼ | Jump 5 commits; on the commit page, previous / next commit |
+| CH ▲ ▼ | Jump 5 commits; on the commit page, previous / next commit; in ambient mode, newer / older commit |
 | PLAY | Ambient mode |
 | BACK | Back; on the log, exit |
 
