@@ -71,11 +71,41 @@
 
   // The site's automatic lane: a 31-hash of the user id, mod 6 (User::automaticLane). A lane someone
   // picked in Settings isn't in the public API, so those people show their automatic color here.
+  // Lanes. People can pick their lane color on dev-null.sh, but the public API doesn't return it, so
+  // learnLane reads it from their activity graph and keeps it on the TV. Until then, and for anyone
+  // not on this TV, the automatic lane: the site's hash of the user id (User::automaticLane).
+  var LANE_HEX = ["#ff8a4c", "#51cf66", "#da77f2", "#3bc9db", "#f06595", "#fcc419"];
+  var lanes = load("lanes", {});
+
   function laneOf(userId) {
-    var hash = 0;
-    var id = String(userId || "");
-    for (var i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-    return "var(--l" + (hash % 6) + ")";
+    var lane = lanes[userId];
+    if (typeof lane !== "number") {
+      var hash = 0;
+      var id = String(userId || "");
+      for (var i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+      lane = hash % 6;
+    }
+    return "var(--l" + lane + ")";
+  }
+
+  // The dark graph is drawn in the user's lane, the only lane color in it. Resolves true when the lane
+  // differs from what was known.
+  function learnLane(user) {
+    var known = lanes[user.id];
+    var found = typeof user.lane === "number" ? Promise.resolve(user.lane)
+      : fetch(SITE + "/@" + encodeURIComponent(user.username) + "/graph.svg?theme=dark")
+        .then(function (r) { return r.ok ? r.text() : ""; })
+        .then(function (svg) {
+          svg = svg.toLowerCase();
+          for (var i = 0; i < LANE_HEX.length; i++) if (svg.indexOf(LANE_HEX[i]) >= 0) return i;
+          return null;
+        });
+    return found.then(function (lane) {
+      if (lane === null || lane === known) return false;
+      lanes[user.id] = lane;
+      save("lanes", lanes);
+      return true;
+    }).catch(function () { return false; }); // offline, or the graph can't be read: keep the automatic lane
   }
 
   function ago(iso) {
@@ -123,10 +153,34 @@
         var isMention = part.charAt(0) === "@";
         node.appendChild(h("span", { class: isMention ? "at" : "url", text: isMention ? part : shortUrl(part) }));
       } else {
-        node.appendChild(document.createTextNode(part));
+        appendWithWordmarks(node, part);
       }
     });
     return node;
+  }
+
+  // As on dev-null.sh, /dev/null on its own renders as the wordmark: semibold, tight, with the logo's
+  // outlined orange slash. Its text stays "/dev/null". Longer paths and words (/dev/nullable,
+  // /dev/null/log, a/dev/null, /dev/null_1) and `inline code` stay plain.
+  var WORDMARK = "/dev/null";
+  var WORDMARK_BEFORE = /[\p{L}\p{M}\p{N}_.\/-]/u;
+  var WORDMARK_AFTER = /[\p{L}\p{M}\p{N}_\/-]/u;
+
+  function appendWithWordmarks(node, text) {
+    text.split(/(`[^`\n]*`)/).forEach(function (chunk, i) {
+      var from = 0;
+      var at = i % 2 ? -1 : chunk.indexOf(WORDMARK);
+      while (at >= 0) {
+        var end = at + WORDMARK.length;
+        if (!WORDMARK_BEFORE.test(chunk.charAt(at - 1)) && !WORDMARK_AFTER.test(chunk.charAt(end))) {
+          if (at > from) node.appendChild(document.createTextNode(chunk.slice(from, at)));
+          node.appendChild(h("span", { class: "wordmark", title: WORDMARK }, "/dev", h("span", { class: "slash", text: "/" }), "null"));
+          from = end;
+        }
+        at = chunk.indexOf(WORDMARK, end);
+      }
+      if (from < chunk.length) node.appendChild(document.createTextNode(chunk.slice(from)));
+    });
   }
 
   function avatar(user, size) {
@@ -154,6 +208,7 @@
     if (userCache[username]) return Promise.resolve(userCache[username]);
     return getJSON("/users/" + encodeURIComponent(username)).then(function (json) {
       userCache[username] = json.data;
+      learnLane(json.data).then(function (changed) { if (changed) repaint(); });
       return json.data;
     });
   }
@@ -194,6 +249,13 @@
     renderNav();
   }
 
+  // Draw the current screen again with fresh data, keeping its focus.
+  function repaint() {
+    if (!screen || (document.activeElement && document.activeElement.tagName === "INPUT")) return;
+    main.textContent = "";
+    screen.render(main);
+  }
+
   function back() {
     if (stack.length) {
       if (screen && screen.leave) screen.leave();
@@ -220,17 +282,22 @@
 
   // ── navigation rail ────────────────────────────────────────────────────────────────────────────
 
+  // Built once and then only restyled, so opening and closing can animate.
   function renderNav() {
-    navEl.textContent = "";
+    if (!navEl.firstChild) {
+      var mark = icon("mark");
+      mark.setAttribute("class", "mark");
+      navEl.appendChild(mark);
+      nav.items.forEach(function (item) {
+        navEl.appendChild(h("div", { class: "item" }, icon(item[0]), h("span", { class: "label", text: item[1] })));
+      });
+    }
     navEl.className = nav.open ? "open" : "";
-    var mark = icon("mark");
-    mark.setAttribute("class", "mark");
-    navEl.appendChild(mark);
+    var els = navEl.querySelectorAll(".item");
     nav.items.forEach(function (item, i) {
       var active = screen && screen.section === item[0];
       var focus = nav.open && nav.index === i;
-      navEl.appendChild(h("div", { class: "item" + (active ? " active" : "") + (focus ? " focus" : "") },
-        icon(item[0]), h("span", { class: "label", text: item[1] })));
+      els[i].className = "item" + (active ? " active" : "") + (focus ? " focus" : "");
     });
   }
 
@@ -833,6 +900,36 @@
 
   // ── Settings ───────────────────────────────────────────────────────────────────────────────────
 
+  // A small abstract loop of each ambient style: bars for text, rings for nodes. Fixed markup from this
+  // file; the motion is CSS (app.css, "style thumbnails").
+  var STYLE_THUMBS = (function () {
+    function scr(lane, up, n) {
+      return '<div class="scr"><i class="ln"></i><i class="up" style="background:var(--l' + up + ')"></i>' +
+        '<i class="fl f' + n + '" style="background:var(--l' + lane + ')"></i><i class="kn" style="color:var(--l' + lane + ')"></i>' +
+        '<b class="b1"></b><b class="b2"></b><b class="b3"></b><b class="b4"></b></div>';
+    }
+    var dots = [0, 3, 1, 4, 2].map(function (lane, k) {
+      return '<i class="dt" style="left:' + (20 + k * 46) + 'px;color:var(--l' + lane + ');animation-delay:' + (k * 1.5) + 's"></i>';
+    }).join("");
+    return {
+      scroll: '<div class="reel">' + scr(0, 3, 1) + scr(3, 0, 2) + scr(0, 3, 3) + '</div>',
+      still: '<i class="ln"></i><i class="fl fa" style="background:var(--l0)"></i><i class="fl fb" style="background:var(--l3)"></i><i class="kn"></i>' +
+        '<div class="ga"><b class="b1"></b><b class="b2"></b><b class="b3"></b><b class="b4"></b></div>' +
+        '<div class="gb"><b class="b1" style="width:56px"></b><b class="b2" style="width:110px"></b><b class="b3" style="width:146px"></b></div>',
+      timeline: '<div class="ga"><b class="b1"></b><b class="b2"></b><b class="b3"></b><b class="b4"></b></div>' +
+        '<i class="tr"></i><i class="tf"></i>' + dots,
+      terminal: '<i class="gg"></i><i class="gf"></i><div class="tb"><b class="c1"></b><i class="wd"></i><b class="wn"></b>' +
+        '<b class="t1"></b><b class="t2"></b><b class="t3"></b><i class="cr"></i></div>'
+    };
+  })();
+
+  function styleThumb(id) {
+    var el = document.createElement("div");
+    el.className = "thumb thumb-" + id;
+    el.innerHTML = STYLE_THUMBS[id];
+    return el;
+  }
+
   var settingsScreen = {
     name: "settings", section: "settings",
     focus: 0,
@@ -847,11 +944,12 @@
         var focused = self.focus === i;
         feed.appendChild(h("div", { class: "option" + (focused ? " focus" : "") + (on ? " on" : "") },
           h("i", { class: "radio" }),
+          styleThumb(style[0]),
           h("div", { class: "who-line" }, h("div", { class: "name", text: style[1] }), h("div", { class: "m", text: style[2] })),
           h("span", { class: "m act", text: on ? "in use" : (focused ? "OK use" : "") })));
       });
       root.appendChild(feed);
-      root.appendChild(h("aside", { class: "aside" }, keysBlock([["▲ ▼", "move"], ["OK", "use this style"], ["▶ PLAY", "preview"], ["◀", "menu"]])));
+      root.appendChild(h("aside", { class: "aside" }, keysBlock([["▲ ▼", "move"], ["OK", "use this style"], ["▶ PLAY", "preview the focused style"], ["◀", "menu"]])));
     },
 
     key: function (code) {
@@ -864,7 +962,7 @@
           save("ambientStyle", ambientStyle);
           this.rerender();
           return true;
-        case KEY.PLAY: case KEY.PLAY_PAUSE: startAmbient(); return true;
+        case KEY.PLAY: case KEY.PLAY_PAUSE: startAmbient(AMBIENT_STYLES[this.focus][0]); return true;
       }
       return false;
     },
@@ -913,10 +1011,12 @@
   ];
   var ambientStyle = load("ambientStyle", "scroll");
 
-  function startAmbient() {
+  // styleId overrides the saved style for this session (Settings previews the focused style).
+  function startAmbient(styleId) {
     var commits = logScreen.commits.slice(0, 20);
     if (!commits.length) return;
-    var id = AMBIENT_STYLE_IMPL[ambientStyle] ? ambientStyle : "scroll";
+    var id = styleId || ambientStyle;
+    if (!AMBIENT_STYLE_IMPL[id]) id = "scroll";
     ambient = { commits: commits, index: 0, queued: 0, style: AMBIENT_STYLE_IMPL[id], timers: [] };
     ambientEl.className = "style-" + id;
     ambientEl.textContent = "";

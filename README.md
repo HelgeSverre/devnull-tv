@@ -29,7 +29,7 @@ public API.
 | **Image viewer** | Full-screen images, stepping through a commit's images. |
 | **People** | The TV's own follow list: add a GitHub username (checked against the API first) or remove one. Stored on the TV. |
 | **Ambient** | After two idle minutes, or on PLAY, the latest commits one at a time, read from across the room. The text takes the largest size (104 to 40 px) at which the whole commit fits; an image, or a short commit's link picture, sits beside it. Each commit shows for 12 s (`AMBIENT_MS`) in one of four styles picked in Settings: **Scroll** (the log scrolls up, one node per screen on a continuous rail), **Still** (commits cross-fade beside a fixed node), **Timeline** (a row of nodes along the bottom) or **Terminal** (`git show`, then the commit types itself out). The key hint fades after 5 s (`AMBIENT_HINT_MS`). CH ▲▼ browses; any other key returns. |
-| **Settings** | The ambient style, stored on the TV. PLAY previews it. |
+| **Settings** | The ambient style, stored on the TV, each shown as a small animated sketch. OK picks a style; PLAY previews the focused one without picking it. |
 | **About** | What dev-null.sh is, the refresh rate and the TV's web engine version. |
 
 ### Remote keys
@@ -40,7 +40,7 @@ public API.
 | ◀ ▶ | ◀ opens the menu; on a commit, move between author, link and images; on a profile's tabs, switch tabs |
 | OK | Open the focused commit, author, link (in the TV's browser) or image |
 | CH ▲ ▼ | Jump 5 commits; on the commit page, previous / next commit; in ambient mode, newer / older commit |
-| PLAY | Ambient mode (also previews the style on Settings) |
+| PLAY | Ambient mode (on Settings: preview the focused style) |
 | BACK | Back; on the log, exit |
 
 ## Install on your TV
@@ -154,8 +154,12 @@ with real commits, following dev-null.sh's [design system](https://github.com/nu
 - **Data:** `GET /api/v1/users/{u}`, `/api/v1/users/{u}/commits` (and `?replies=1`),
   `/api/v1/commits/{id}`, and the public activity graph at `/@{u}/graph.svg?theme=dark`. The API
   has no global feed, which is why the log is built from the people you add.
-- **Lane colors** use the site's automatic hash of the user id (`User::automaticLane`). The API
-  doesn't expose a lane someone picked in Settings, so those people show their automatic color.
+- **Lane colors.** The API doesn't return the lane someone picked in their dev-null.sh settings, but
+  their activity graph is drawn in it, so the app reads each person's lane from
+  `/@{u}/graph.svg?theme=dark` once per session and stores it on the TV. Anyone else (authors of
+  parent commits) gets the site's automatic lane, a hash of the user id (`User::automaticLane`).
+- **The /dev/null wordmark.** Like the site, a standalone `/dev/null` in a commit renders as the
+  wordmark with the outlined orange slash; longer paths, words and `inline code` stay plain.
 - **Links** open in the TV's own browser through `tizen.application.launchAppControl`.
 - **Keys** like PLAY and the channel buttons are registered with `tizen.tvinputdevice`.
 

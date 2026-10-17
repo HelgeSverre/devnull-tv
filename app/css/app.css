@@ -25,19 +25,21 @@ html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; positio
 svg { display: block; }
 
 /* ── navigation rail ───────────────────────────────────────────────── */
-#nav { position: absolute; left: 0; top: 0; bottom: 0; width: 136px; padding: 54px 0; z-index: 5;
-       display: flex; flex-direction: column; align-items: center; }
-#nav .mark { width: 64px; height: 64px; margin-bottom: 48px; }
-#nav .item { width: 88px; height: 88px; margin-bottom: 18px; border-radius: 18px; color: var(--muted);
-             display: flex; align-items: center; justify-content: center; }
+/* The icons stay where they are; opening slides the panel in behind them, widens the items and fades
+   the labels in. Only the panel's transform, the items' width and the labels' opacity animate. */
+#nav { position: absolute; left: 0; top: 0; bottom: 0; width: 136px; padding: 54px 0; z-index: 5; }
+#nav:before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 420px; background: var(--popover);
+              border-right: 2px solid var(--hairline); transform: translateX(-422px); transition: transform 180ms ease-in; }
+#nav.open:before { transform: translateX(0); transition: transform 220ms cubic-bezier(.2, .8, .2, 1); }
+#nav .mark { position: relative; display: block; width: 64px; height: 64px; margin: 0 0 48px 36px; }
+#nav .item { position: relative; width: 88px; height: 88px; margin: 0 0 18px 24px; padding-left: 22px; border-radius: 18px;
+             color: var(--muted); display: flex; align-items: center; overflow: hidden; white-space: nowrap;
+             transition: width 180ms ease-in, color 150ms ease; }
 #nav .item svg { width: 44px; height: 44px; flex: none; }
-#nav .item .label { display: none; margin-left: 26px; font-weight: 500; font-size: 32px; white-space: nowrap; }
+#nav .item .label { margin-left: 26px; font-weight: 500; font-size: 32px; opacity: 0; transition: opacity 100ms ease; }
 #nav .item.active { background: var(--soft); color: var(--primary); }
-#nav.open { width: 420px; padding-left: 40px; padding-right: 40px; align-items: stretch;
-            background: var(--popover); border-right: 2px solid var(--hairline); }
-#nav.open .mark { margin-left: 12px; }
-#nav.open .item { width: auto; justify-content: flex-start; padding: 0 24px; }
-#nav.open .item .label { display: inline; }
+#nav.open .item { width: 372px; transition: width 220ms cubic-bezier(.2, .8, .2, 1), color 150ms ease; }
+#nav.open .item .label { opacity: 1; transition: opacity 160ms ease 60ms; }
 #nav.open .item.focus { box-shadow: 0 0 0 4px var(--primary); color: var(--ink); }
 
 /* ── columns ───────────────────────────────────────────────────────── */
@@ -78,6 +80,10 @@ svg { display: block; }
 .replying { margin-top: 6px; font-size: 24px; }
 .body { margin-top: 10px; white-space: pre-wrap; word-wrap: break-word; }
 .body .at, .body .url { color: var(--primary); }
+/* The /dev/null wordmark, as dev-null.sh renders it in posts. max() is newer than the TV's engine, so
+   the plain em width comes first as its fallback. */
+.wordmark { font-weight: 600; letter-spacing: -0.025em; white-space: nowrap; }
+.wordmark .slash { color: transparent; -webkit-text-stroke: 0.035em var(--l0); -webkit-text-stroke: max(1px, 0.035em) var(--l0); }
 .body.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .actions { margin-top: 16px; display: flex; align-items: center; }
 .actions span { display: inline-flex; align-items: center; margin-right: 48px; }
@@ -166,6 +172,83 @@ svg { display: block; }
 .option .act { margin-left: 24px; white-space: nowrap; }
 .option.on .act { color: var(--primary); }
 .option.focus { background: var(--soft); box-shadow: inset 0 0 0 4px var(--primary); }
+
+/* style thumbnails: 224×126 sketches of each ambient style. Bars stand for text, rings for nodes. */
+.thumb { position: relative; flex: none; width: 224px; height: 126px; margin-right: 36px; border-radius: 12px; overflow: hidden;
+         background: var(--shell); box-shadow: 0 0 0 2px var(--hairline); }
+.thumb i, .thumb b { position: absolute; display: block; }
+.thumb b { left: 56px; height: 9px; border-radius: 5px; background: #4a4a50; }
+.thumb .b1 { top: 28px; width: 70px; height: 7px; background: #6a6a70; }
+.thumb .b2 { top: 48px; width: 140px; }
+.thumb .b3 { top: 64px; width: 120px; }
+.thumb .b4 { top: 80px; width: 90px; }
+.thumb .ln { left: 22px; top: 0; width: 4px; height: 126px; background: var(--rail); }
+.thumb .up { left: 22px; top: 0; width: 4px; height: 26px; }
+.thumb .fl { left: 22px; top: 42px; width: 4px; height: 84px; transform: scaleY(0); transform-origin: top;
+             animation-duration: 8s; animation-iteration-count: infinite; animation-timing-function: linear; }
+.thumb .kn { left: 16px; top: 26px; width: 16px; height: 16px; border-radius: 50%; background: var(--shell);
+             box-shadow: 0 0 0 3px currentColor; }
+.thumb .ga, .thumb .gb { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+
+/* Scroll: three screens (the third repeats the first) rise one screen at a time. */
+.thumb .reel { position: absolute; left: 0; top: 0; width: 100%; animation: thumb-reel 8s ease-in-out infinite; }
+.thumb .scr { position: relative; height: 126px; }
+.thumb .f1 { animation-name: thumb-fill-1; }
+.thumb .f2 { animation-name: thumb-fill-2; }
+@keyframes thumb-reel { 0%, 40% { transform: translateY(0); } 50%, 90% { transform: translateY(-126px); } 100% { transform: translateY(-252px); } }
+@keyframes thumb-fill-1 { 0% { transform: scaleY(0); } 40%, 100% { transform: scaleY(1); } }
+@keyframes thumb-fill-2 { 0%, 50% { transform: scaleY(0); } 90%, 100% { transform: scaleY(1); } }
+
+/* Still: the text cross-fades beside a fixed node that changes lane. */
+.thumb-still .fa { animation-name: thumb-still-fa; }
+.thumb-still .fb { animation-name: thumb-still-fb; }
+.thumb-still .kn { animation: thumb-still-kn 8s infinite; }
+.thumb-still .ga { animation: thumb-still-a 8s infinite; }
+.thumb-still .gb { opacity: 0; animation: thumb-still-b 8s infinite; }
+@keyframes thumb-still-fa { 0% { transform: scaleY(0); opacity: 1; } 44% { transform: scaleY(1); opacity: 1; } 50%, 100% { transform: scaleY(1); opacity: 0; } }
+@keyframes thumb-still-fb { 0%, 50% { transform: scaleY(0); opacity: 1; } 94% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+@keyframes thumb-still-kn { 0%, 44% { color: var(--l0); } 50%, 94% { color: var(--l3); } 100% { color: var(--l0); } }
+@keyframes thumb-still-a { 0%, 42% { opacity: 1; } 50%, 92% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes thumb-still-b { 0%, 42% { opacity: 0; } 50%, 92% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Timeline: the text changes as the next node along the bottom swells and the line fills toward it. */
+.thumb-timeline b { left: 20px; }
+.thumb-timeline .b1 { top: 18px; }
+.thumb-timeline .b2 { top: 36px; width: 150px; }
+.thumb-timeline .b3 { top: 52px; }
+.thumb-timeline .b4 { top: 68px; }
+.thumb-timeline .ga { animation: thumb-blink 1.5s infinite; }
+.thumb .tr, .thumb .tf { left: 20px; top: 101px; width: 184px; height: 4px; background: var(--rail); }
+.thumb .tf { background: var(--l3); transform: scaleX(0); transform-origin: left; animation: thumb-tl 7.5s linear infinite; }
+.thumb .dt { top: 97px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--shell);
+             box-shadow: 0 0 0 3px currentColor; animation: thumb-dot 7.5s infinite; }
+@keyframes thumb-blink { 0% { opacity: 0; } 15%, 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes thumb-tl { 0% { transform: scaleX(0); } 80%, 100% { transform: scaleX(1); } }
+@keyframes thumb-dot { 0%, 16% { transform: scale(1.7); } 22%, 100% { transform: scale(1); } }
+
+/* Terminal: the command, then the commit, type out; a gauge runs along the top. */
+.thumb .gg, .thumb .gf { left: 20px; top: 12px; width: 72px; height: 5px; background: var(--rail); }
+.thumb .gf { background: #6a6a70; transform: scaleX(0); transform-origin: left; animation: thumb-gauge 6s linear infinite; }
+.thumb .tb { position: absolute; left: 0; top: 0; width: 100%; height: 100%; animation: thumb-term 6s infinite; }
+.thumb-terminal b { left: 20px; transform-origin: left; animation-duration: 6s; animation-iteration-count: infinite;
+                    animation-timing-function: steps(8, end); }
+.thumb .c1 { top: 28px; width: 64px; height: 6px; background: #6a6a70; animation-name: thumb-cmd; }
+.thumb .wd { left: 20px; top: 44px; width: 10px; height: 10px; border-radius: 50%; background: var(--l3); animation: thumb-who 6s infinite; }
+.thumb-terminal .wn { left: 36px; top: 46px; width: 60px; height: 6px; animation: thumb-who 6s infinite; }
+.thumb .t1, .thumb .t2, .thumb .t3 { height: 11px; background: #9a9aa0; }
+.thumb .t1 { top: 64px; width: 160px; animation-name: thumb-t1; }
+.thumb .t2 { top: 81px; width: 130px; animation-name: thumb-t2; }
+.thumb .t3 { top: 98px; width: 80px; animation-name: thumb-t3; }
+.thumb .cr { left: 104px; top: 98px; width: 6px; height: 11px; background: var(--primary); animation: thumb-caret 6s infinite; }
+@keyframes thumb-gauge { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+@keyframes thumb-term { 0%, 92% { opacity: 1; } 98%, 100% { opacity: 0; } }
+@keyframes thumb-cmd { 0% { transform: scaleX(0); } 12%, 100% { transform: scaleX(1); } }
+@keyframes thumb-who { 0%, 14% { visibility: hidden; } 15%, 100% { visibility: visible; } }
+@keyframes thumb-t1 { 0%, 16% { transform: scaleX(0); } 34%, 100% { transform: scaleX(1); } }
+@keyframes thumb-t2 { 0%, 34% { transform: scaleX(0); } 48%, 100% { transform: scaleX(1); } }
+@keyframes thumb-t3 { 0%, 48% { transform: scaleX(0); } 56%, 100% { transform: scaleX(1); } }
+@keyframes thumb-caret { 0%, 56% { visibility: hidden; opacity: 1; } 57%, 64% { visibility: visible; opacity: 1; }
+                         65%, 72% { opacity: 0; } 73%, 80% { opacity: 1; } 81%, 88% { opacity: 0; } 89%, 100% { visibility: visible; opacity: 1; } }
 
 #ambient { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: var(--shell); z-index: 9; overflow: hidden; }
 #ambient .amb-clock { position: absolute; right: 96px; top: 54px; font-size: 32px; z-index: 2; }
