@@ -166,8 +166,21 @@
   var WORDMARK_BEFORE = /[\p{L}\p{M}\p{N}_.\/-]/u;
   var WORDMARK_AFTER = /[\p{L}\p{M}\p{N}_\/-]/u;
 
+  // The outlined slash is drawn rather than set as text: the TV's engine renders -webkit-text-stroke
+  // unreliably. The hidden "/" keeps the text "/dev/null" for copying and screen readers.
   function wordmark() {
-    return h("span", { class: "wordmark", title: WORDMARK }, "/dev", h("span", { class: "slash", text: "/" }), "null");
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 44 100");
+    svg.setAttribute("class", "slash");
+    svg.setAttribute("aria-hidden", "true");
+    var band = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    band.setAttribute("d", "M3 97h13L42 3H29Z");
+    band.setAttribute("fill", "none");
+    band.setAttribute("stroke", "#ff8a4c");
+    band.setAttribute("stroke-width", "4.5");
+    band.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(band);
+    return h("span", { class: "wordmark", title: WORDMARK }, "/dev", h("span", { class: "slash-text", text: "/" }), svg, "null");
   }
 
   function appendWithWordmarks(node, text) {

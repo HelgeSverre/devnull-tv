@@ -80,10 +80,11 @@ svg { display: block; }
 .replying { margin-top: 6px; font-size: 24px; }
 .body { margin-top: 10px; white-space: pre-wrap; word-wrap: break-word; }
 .body .at, .body .url { color: var(--primary); }
-/* The /dev/null wordmark, as dev-null.sh renders it in posts. max() is newer than the TV's engine, so
-   the plain em width comes first as its fallback. */
+/* The /dev/null wordmark, as dev-null.sh renders it in posts: semibold, tight, with the logo's outlined
+   orange slash (an SVG; see wordmark() in app.js). */
 .wordmark { font-weight: 600; letter-spacing: -0.025em; white-space: nowrap; }
-.wordmark .slash { color: transparent; -webkit-text-stroke: 0.035em var(--l0); -webkit-text-stroke: max(1px, 0.035em) var(--l0); }
+.wordmark .slash { display: inline-block; width: 0.4em; height: 0.92em; margin: 0 0.01em; vertical-align: -0.17em; overflow: visible; }
+.wordmark .slash-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .body.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .actions { margin-top: 16px; display: flex; align-items: center; }
 .actions span { display: inline-flex; align-items: center; margin-right: 48px; }
